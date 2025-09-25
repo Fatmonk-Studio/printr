@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
+import { ImagePreviewCanvas, CropData } from "./ImagePreviewCanvas";
 import { toast } from "sonner";
 
 type Format = "HD matte sticker paper" | "3mm Board HD matte pasted frame" | "5mm Board HD matte pasted frame" | "Premium Framed Print with Glass" | "Premium Framed Print without Glass";
@@ -32,7 +33,16 @@ interface PhotoItem {
   format: Format;
   size: Size;
   preview: string;
+  cropData?: CropData;
 }
+
+// Size dimensions for preview (scaled down for display)
+const sizePreviewDimensions: Record<Size, { width: number; height: number }> = {
+  "8.5x4": { width: 212, height: 100 },   // 8.5:4 ratio
+  "12x18": { width: 200, height: 300 },   // 12:18 ratio  
+  "16x24": { width: 200, height: 300 },   // 16:24 ratio
+  "24x36": { width: 200, height: 300 },   // 24:36 ratio
+};
 
 export const PrintPhotoFlow = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -51,6 +61,7 @@ export const PrintPhotoFlow = () => {
             format: "HD matte sticker paper",
             size: "12x18",
             preview: e.target?.result as string,
+            cropData: { x: 0, y: 0, scale: 1 },
           };
           setPhotos(prev => [...prev, newPhoto]);
         };
@@ -65,6 +76,10 @@ export const PrintPhotoFlow = () => {
     setPhotos(prev => prev.map(photo => 
       photo.id === id ? { ...photo, ...updates } : photo
     ));
+  };
+
+  const updatePhotoCrop = (id: string, cropData: CropData) => {
+    updatePhoto(id, { cropData });
   };
 
   const removePhoto = (id: string) => {
@@ -138,29 +153,36 @@ export const PrintPhotoFlow = () => {
           
           {photos.map((photo) => (
             <Card key={photo.id} className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Preview */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Preview Canvas */}
                 <div className="space-y-4">
-                  <div className="relative">
-                    <img
-                      src={photo.preview}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Interactive Preview</h3>
                     <Button
                       variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
+                      size="sm"
                       onClick={() => removePhoto(photo.id)}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 mr-1" />
+                      Remove
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">{photo.file.name}</p>
+                  
+                  <ImagePreviewCanvas
+                    imageUrl={photo.preview}
+                    width={sizePreviewDimensions[photo.size].width}
+                    height={sizePreviewDimensions[photo.size].height}
+                    onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
+                  />
+                  
+                  <p className="text-sm text-muted-foreground truncate">
+                    📁 {photo.file.name}
+                  </p>
                 </div>
 
                 {/* Configuration */}
-                <div className="lg:col-span-2 space-y-4">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Print Options</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Format</Label>
@@ -202,7 +224,10 @@ export const PrintPhotoFlow = () => {
                   </div>
 
                   <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                    <span className="font-medium">Price for this photo:</span>
+                    <div>
+                      <span className="font-medium">Price for this photo:</span>
+                      <p className="text-sm text-muted-foreground">{sizes[photo.size].name}</p>
+                    </div>
                     <span className="text-xl font-bold text-primary">{sizes[photo.size].price} tk</span>
                   </div>
                 </div>
