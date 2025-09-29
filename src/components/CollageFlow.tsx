@@ -1,159 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, Shuffle, Grid } from "lucide-react";
+import { Upload, X, Shuffle, RefreshCw } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
+import { CollageLayoutPreview } from "./CollageLayoutPreview";
+import { collageLayouts, getBestLayoutForPhotos, getLayoutsForPhotoCount, CollageLayout } from "./CollageLayouts";
 import { toast } from "sonner";
 
 type Shape = "square" | "rectangle";
-
-interface CollageLayout {
-  id: string;
-  name: string;
-  maxPhotos: number;
-  slots: Array<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }>;
-}
-
-const layouts: CollageLayout[] = [
-  {
-    id: "single",
-    name: "Single Photo",
-    maxPhotos: 1,
-    slots: [{ x: 0, y: 0, width: 100, height: 100 }]
-  },
-  {
-    id: "split-2",
-    name: "Split (2 Photos)",
-    maxPhotos: 2,
-    slots: [
-      { x: 0, y: 0, width: 50, height: 100 },
-      { x: 50, y: 0, width: 50, height: 100 }
-    ]
-  },
-  {
-    id: "three-vertical",
-    name: "Three Vertical",
-    maxPhotos: 3,
-    slots: [
-      { x: 0, y: 0, width: 33.33, height: 100 },
-      { x: 33.33, y: 0, width: 33.33, height: 100 },
-      { x: 66.66, y: 0, width: 33.33, height: 100 }
-    ]
-  },
-  {
-    id: "grid-2x2",
-    name: "Grid 2×2",
-    maxPhotos: 4,
-    slots: [
-      { x: 0, y: 0, width: 50, height: 50 },
-      { x: 50, y: 0, width: 50, height: 50 },
-      { x: 0, y: 50, width: 50, height: 50 },
-      { x: 50, y: 50, width: 50, height: 50 }
-    ]
-  },
-  {
-    id: "main-plus-four",
-    name: "Main + Four",
-    maxPhotos: 5,
-    slots: [
-      { x: 0, y: 0, width: 60, height: 60 },
-      { x: 60, y: 0, width: 40, height: 30 },
-      { x: 60, y: 30, width: 40, height: 30 },
-      { x: 0, y: 60, width: 30, height: 40 },
-      { x: 30, y: 60, width: 30, height: 40 }
-    ]
-  },
-  {
-    id: "grid-3x2",
-    name: "Grid 3×2",
-    maxPhotos: 6,
-    slots: [
-      { x: 0, y: 0, width: 33.33, height: 50 },
-      { x: 33.33, y: 0, width: 33.33, height: 50 },
-      { x: 66.66, y: 0, width: 33.33, height: 50 },
-      { x: 0, y: 50, width: 33.33, height: 50 },
-      { x: 33.33, y: 50, width: 33.33, height: 50 },
-      { x: 66.66, y: 50, width: 33.33, height: 50 }
-    ]
-  },
-  {
-    id: "mosaic-7",
-    name: "Mosaic (7 Photos)",
-    maxPhotos: 7,
-    slots: [
-      { x: 0, y: 0, width: 40, height: 40 },
-      { x: 40, y: 0, width: 30, height: 40 },
-      { x: 70, y: 0, width: 30, height: 40 },
-      { x: 0, y: 40, width: 25, height: 30 },
-      { x: 25, y: 40, width: 25, height: 30 },
-      { x: 50, y: 40, width: 25, height: 30 },
-      { x: 75, y: 40, width: 25, height: 30 },
-      { x: 0, y: 70, width: 100, height: 30 }
-    ]
-  },
-  {
-    id: "grid-4x2",
-    name: "Grid 4×2",
-    maxPhotos: 8,
-    slots: [
-      { x: 0, y: 0, width: 25, height: 50 },
-      { x: 25, y: 0, width: 25, height: 50 },
-      { x: 50, y: 0, width: 25, height: 50 },
-      { x: 75, y: 0, width: 25, height: 50 },
-      { x: 0, y: 50, width: 25, height: 50 },
-      { x: 25, y: 50, width: 25, height: 50 },
-      { x: 50, y: 50, width: 25, height: 50 },
-      { x: 75, y: 50, width: 25, height: 50 }
-    ]
-  },
-  {
-    id: "grid-3x3",
-    name: "Grid 3×3",
-    maxPhotos: 9,
-    slots: [
-      { x: 0, y: 0, width: 33.33, height: 33.33 },
-      { x: 33.33, y: 0, width: 33.33, height: 33.33 },
-      { x: 66.66, y: 0, width: 33.33, height: 33.33 },
-      { x: 0, y: 33.33, width: 33.33, height: 33.33 },
-      { x: 33.33, y: 33.33, width: 33.33, height: 33.33 },
-      { x: 66.66, y: 33.33, width: 33.33, height: 33.33 },
-      { x: 0, y: 66.66, width: 33.33, height: 33.33 },
-      { x: 33.33, y: 66.66, width: 33.33, height: 33.33 },
-      { x: 66.66, y: 66.66, width: 33.33, height: 33.33 }
-    ]
-  },
-  {
-    id: "magazine-10",
-    name: "Magazine Style",
-    maxPhotos: 10,
-    slots: [
-      { x: 0, y: 0, width: 50, height: 30 },
-      { x: 50, y: 0, width: 25, height: 30 },
-      { x: 75, y: 0, width: 25, height: 30 },
-      { x: 0, y: 30, width: 30, height: 25 },
-      { x: 30, y: 30, width: 40, height: 25 },
-      { x: 70, y: 30, width: 30, height: 25 },
-      { x: 0, y: 55, width: 25, height: 25 },
-      { x: 25, y: 55, width: 25, height: 25 },
-      { x: 50, y: 55, width: 25, height: 25 },
-      { x: 75, y: 55, width: 25, height: 25 },
-      { x: 0, y: 80, width: 100, height: 20 }
-    ]
-  }
-];
 
 interface PhotoSlot {
   id: string;
   photo?: File;
   preview?: string;
-  cropData?: { x: number; y: number; scale: number };
+  cropData: { x: number; y: number; scale: number; rotation: number };
 }
 
 const COLLAGE_SIZES = {
@@ -170,6 +32,16 @@ export const CollageFlow = () => {
   const [shape, setShape] = useState<Shape>("square");
   const [collageSize, setCollageSize] = useState("square-small");
   const [showContactForm, setShowContactForm] = useState(false);
+
+  // Auto-select best layout when photos change
+  useEffect(() => {
+    if (photos.length > 0) {
+      const bestLayout = getBestLayoutForPhotos(photos.length, shape);
+      if (bestLayout && bestLayout.id !== selectedLayout?.id) {
+        handleLayoutSelect(bestLayout);
+      }
+    }
+  }, [photos.length, shape]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -189,7 +61,7 @@ export const CollageFlow = () => {
   };
 
   const getAvailableLayouts = () => {
-    return layouts.filter(layout => layout.maxPhotos >= photos.length);
+    return getLayoutsForPhotoCount(photos.length, shape);
   };
 
   const shufflePhotos = () => {
@@ -205,19 +77,22 @@ export const CollageFlow = () => {
       id: `slot-${index}`,
       photo: photos[index],
       preview: photos[index] ? URL.createObjectURL(photos[index]) : undefined,
+      cropData: { x: 0, y: 0, scale: 1, rotation: 0 }
     }));
     setPhotoSlots(slots);
   };
 
-  const movePhotoToSlot = (photoIndex: number, slotIndex: number) => {
-    const newSlots = [...photoSlots];
-    // Clear the slot first
-    newSlots[slotIndex] = {
-      ...newSlots[slotIndex],
-      photo: photos[photoIndex],
-      preview: URL.createObjectURL(photos[photoIndex]),
-    };
+  const autoFillSlots = () => {
+    if (!selectedLayout) return;
+    
+    const newSlots: PhotoSlot[] = selectedLayout.slots.map((_, index) => ({
+      id: `slot-${index}`,
+      photo: photos[index],
+      preview: photos[index] ? URL.createObjectURL(photos[index]) : undefined,
+      cropData: { x: 0, y: 0, scale: 1, rotation: 0 }
+    }));
     setPhotoSlots(newSlots);
+    toast.success("Photos automatically arranged!");
   };
 
   const getTotalPrice = () => {
@@ -369,21 +244,36 @@ export const CollageFlow = () => {
 
           {/* Layout Selection */}
           <div className="space-y-4">
-            <Label>Choose Layout ({getAvailableLayouts().length} available)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Layout: {selectedLayout?.name || "Auto-selected"}</Label>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={autoFillSlots}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Auto Fill
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {getAvailableLayouts().length} available
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {getAvailableLayouts().map((layout) => (
                 <button
                   key={layout.id}
                   onClick={() => handleLayoutSelect(layout)}
-                  className={`p-3 border rounded-lg text-center transition-colors ${
+                  className={`p-3 border rounded-lg text-center transition-all hover:scale-105 ${
                     selectedLayout?.id === layout.id
-                      ? 'border-primary bg-primary/10'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <Grid className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded border flex items-center justify-center">
+                    <div className="text-xs font-mono">{layout.name.substring(0, 2)}</div>
+                  </div>
                   <p className="text-sm font-medium">{layout.name}</p>
-                  <p className="text-xs text-muted-foreground">{layout.maxPhotos} photos</p>
+                  <p className="text-xs text-muted-foreground">
+                    {layout.minPhotos}-{layout.maxPhotos} photos
+                  </p>
                 </button>
               ))}
             </div>
@@ -394,64 +284,16 @@ export const CollageFlow = () => {
       {/* Layout Preview */}
       {selectedLayout && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Collage Preview</h3>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="flex-1">
-              <div 
-                className="relative border-2 border-dashed border-border rounded-lg mx-auto"
-                style={{
-                  width: COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].width,
-                  height: COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].height,
-                }}
-              >
-                {selectedLayout.slots.map((slot, index) => (
-                  <div
-                    key={index}
-                    className="absolute border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground"
-                    style={{
-                      left: `${slot.x}%`,
-                      top: `${slot.y}%`,
-                      width: `${slot.width}%`,
-                      height: `${slot.height}%`,
-                    }}
-                  >
-                    {photoSlots[index]?.preview ? (
-                      <img
-                        src={photoSlots[index].preview}
-                        alt={`Slot ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      `Slot ${index + 1}`
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="lg:w-64">
-              <h4 className="font-medium mb-3">Drag photos to slots:</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((photo, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      // Find next empty slot or first slot
-                      const emptySlotIndex = photoSlots.findIndex(slot => !slot.photo) || 0;
-                      movePhotoToSlot(index, emptySlotIndex);
-                    }}
-                    className="relative hover:scale-105 transition-transform"
-                  >
-                    <img
-                      src={URL.createObjectURL(photo)}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-16 object-cover rounded border"
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <h3 className="text-lg font-semibold mb-4">Interactive Collage Preview</h3>
+          
+          <CollageLayoutPreview
+            layout={selectedLayout}
+            photoSlots={photoSlots}
+            onPhotoSlotUpdate={setPhotoSlots}
+            width={COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].width}
+            height={COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].height}
+            availablePhotos={photos}
+          />
 
           {/* Continue Button */}
           <div className="flex justify-between items-center p-4 bg-muted rounded-lg mt-6">
