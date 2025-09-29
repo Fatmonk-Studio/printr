@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFlowLayout } from "@/components/ProductFlowLayout";
 import { PrintPhotoFlow } from "@/components/PrintPhotoFlow";
+import { FrameFlow } from "@/components/FrameFlow";
+import { CollageFlow } from "@/components/CollageFlow";
 import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
 
@@ -57,10 +59,7 @@ const Index = () => {
   if (currentFlow === "frame") {
     return (
       <ProductFlowLayout title="Frame" onBack={handleBackToHome}>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-semibold mb-4">Frame Flow</h2>
-          <p className="text-muted-foreground">Coming soon! This feature is under development.</p>
-        </div>
+        <FrameFlow />
       </ProductFlowLayout>
     );
   }
@@ -68,10 +67,7 @@ const Index = () => {
   if (currentFlow === "collage") {
     return (
       <ProductFlowLayout title="Collage" onBack={handleBackToHome}>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-semibold mb-4">Collage Flow</h2>
-          <p className="text-muted-foreground">Coming soon! This feature is under development.</p>
-        </div>
+        <CollageFlow />
       </ProductFlowLayout>
     );
   }
