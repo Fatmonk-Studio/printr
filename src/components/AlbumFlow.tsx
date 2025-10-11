@@ -2,118 +2,157 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
+import { AlbumCoverSelector } from "./AlbumCoverSelector";
+import { ALBUM_LAYOUTS, LayoutTemplate } from "./AlbumLayoutTemplates";
+import { ImageSlotEditor } from "./ImageSlotEditor";
 import { toast } from "sonner";
+
+interface ImageData {
+  file: File;
+  zoom: number;
+  position: { x: number; y: number };
+}
 
 interface AlbumPage {
   id: string;
-  photos: (File | null)[];
-  layout: "single" | "double" | "triple" | "quad";
+  layoutId: string;
+  images: (ImageData | null)[];
 }
 
-const ALBUM_SIZES = {
-  "small": { name: "8\" × 8\" Square Album", price: 2500, pages: 20, photosPerPage: 1 },
-  "medium": { name: "10\" × 10\" Square Album", price: 3500, pages: 30, photosPerPage: 2 },
-  "large": { name: "12\" × 12\" Square Album", price: 4500, pages: 40, photosPerPage: 2 },
-  "portrait": { name: "11\" × 14\" Portrait Album", price: 5000, pages: 30, photosPerPage: 3 },
-};
-
-const PAGE_LAYOUTS = {
-  "single": { name: "Single Photo", slots: 1 },
-  "double": { name: "Two Photos", slots: 2 },
-  "triple": { name: "Three Photos", slots: 3 },
-  "quad": { name: "Four Photos", slots: 4 },
-};
+const PAGE_OPTIONS = [4, 8, 12, 16, 20, 24, 28];
+const PRICE_PER_PAGE = 100; // tk per page
+const BASE_PRICE = 1000; // tk base price
 
 export const AlbumFlow = () => {
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [albumSize, setAlbumSize] = useState("medium");
+  const [step, setStep] = useState(1);
+  const [shape, setShape] = useState<"square" | "rectangle">("square");
+  const [coverImage, setCoverImage] = useState<string | File | null>(null);
+  const [pageCount, setPageCount] = useState(8);
+  const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
   const [pages, setPages] = useState<AlbumPage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [draggedImage, setDraggedImage] = useState<File | null>(null);
+
+  const initializePages = () => {
+    const newPages: AlbumPage[] = Array.from({ length: pageCount }, (_, i) => ({
+      id: `page-${i}`,
+      layoutId: ALBUM_LAYOUTS[0].id,
+      images: Array(ALBUM_LAYOUTS[0].imageCount).fill(null),
+    }));
+    setPages(newPages);
+    setStep(4);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    
-    setPhotos(prev => [...prev, ...imageFiles]);
-    toast.success(`${imageFiles.length} photo(s) added to album!`);
+    setUploadedPhotos(prev => [...prev, ...imageFiles]);
+    toast.success(`${imageFiles.length} photo(s) uploaded!`);
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
+  const updatePageLayout = (pageIndex: number, layoutId: string) => {
+    const layout = ALBUM_LAYOUTS.find(l => l.id === layoutId);
+    if (!layout) return;
 
-  const initializePages = () => {
-    const maxPages = ALBUM_SIZES[albumSize as keyof typeof ALBUM_SIZES].pages;
-    const defaultLayout = albumSize === "small" ? "single" : "double";
-    
-    const newPages: AlbumPage[] = Array.from({ length: maxPages }, (_, i) => ({
-      id: `page-${i}`,
-      photos: Array(PAGE_LAYOUTS[defaultLayout].slots).fill(null),
-      layout: defaultLayout as "single" | "double" | "triple" | "quad"
-    }));
-
-    // Auto-fill photos
-    let photoIndex = 0;
-    for (let pageIdx = 0; pageIdx < newPages.length && photoIndex < photos.length; pageIdx++) {
-      for (let slotIdx = 0; slotIdx < newPages[pageIdx].photos.length && photoIndex < photos.length; slotIdx++) {
-        newPages[pageIdx].photos[slotIdx] = photos[photoIndex];
-        photoIndex++;
-      }
-    }
-
-    setPages(newPages);
-    setCurrentPageIndex(0);
-    toast.success("Album pages initialized!");
-  };
-
-  const updatePageLayout = (pageIndex: number, layout: "single" | "double" | "triple" | "quad") => {
     setPages(prev => {
       const newPages = [...prev];
-      const currentPhotos = newPages[pageIndex].photos.filter(p => p !== null);
-      const newSlots = PAGE_LAYOUTS[layout].slots;
-      
+      const currentImages = newPages[pageIndex].images.filter(img => img !== null);
       newPages[pageIndex] = {
         ...newPages[pageIndex],
-        layout,
-        photos: Array(newSlots).fill(null).map((_, i) => currentPhotos[i] || null)
+        layoutId,
+        images: Array(layout.imageCount).fill(null).map((_, i) => currentImages[i] || null),
       };
-      
       return newPages;
     });
   };
 
-  const addPhotoToPage = (pageIndex: number, slotIndex: number, photo: File) => {
+  const addImageToSlot = (pageIndex: number, slotIndex: number, file: File) => {
     setPages(prev => {
       const newPages = [...prev];
-      newPages[pageIndex].photos[slotIndex] = photo;
+      newPages[pageIndex].images[slotIndex] = {
+        file,
+        zoom: 1,
+        position: { x: 0, y: 0 },
+      };
       return newPages;
     });
   };
 
-  const removePhotoFromPage = (pageIndex: number, slotIndex: number) => {
+  const removeImageFromSlot = (pageIndex: number, slotIndex: number) => {
     setPages(prev => {
       const newPages = [...prev];
-      newPages[pageIndex].photos[slotIndex] = null;
+      newPages[pageIndex].images[slotIndex] = null;
       return newPages;
     });
+  };
+
+  const updateImageZoom = (pageIndex: number, slotIndex: number, zoom: number) => {
+    setPages(prev => {
+      const newPages = [...prev];
+      const img = newPages[pageIndex].images[slotIndex];
+      if (img) {
+        newPages[pageIndex].images[slotIndex] = { ...img, zoom };
+      }
+      return newPages;
+    });
+  };
+
+  const updateImagePosition = (pageIndex: number, slotIndex: number, position: { x: number; y: number }) => {
+    setPages(prev => {
+      const newPages = [...prev];
+      const img = newPages[pageIndex].images[slotIndex];
+      if (img) {
+        newPages[pageIndex].images[slotIndex] = { ...img, position };
+      }
+      return newPages;
+    });
+  };
+
+  const handleDragStart = (e: React.DragEvent, slotIndex: number) => {
+    const img = pages[currentPageIndex].images[slotIndex];
+    if (img) {
+      setDraggedImage(img.file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetSlotIndex: number) => {
+    e.preventDefault();
+    if (!draggedImage) return;
+
+    const sourceSlotIndex = pages[currentPageIndex].images.findIndex(
+      img => img?.file === draggedImage
+    );
+
+    if (sourceSlotIndex === -1) return;
+
+    setPages(prev => {
+      const newPages = [...prev];
+      const temp = newPages[currentPageIndex].images[targetSlotIndex];
+      newPages[currentPageIndex].images[targetSlotIndex] = newPages[currentPageIndex].images[sourceSlotIndex];
+      newPages[currentPageIndex].images[sourceSlotIndex] = temp;
+      return newPages;
+    });
+
+    setDraggedImage(null);
   };
 
   const getTotalPrice = () => {
-    return ALBUM_SIZES[albumSize as keyof typeof ALBUM_SIZES].price;
+    return BASE_PRICE + (pageCount * PRICE_PER_PAGE);
   };
 
   const handleSubmitOrder = (contactData: ContactFormData) => {
-    console.log('Album order submitted:', { 
-      photos, 
+    console.log('Album order submitted:', {
+      shape,
+      coverImage,
+      pageCount,
       pages,
-      size: albumSize,
-      contactData, 
-      totalPrice: getTotalPrice() 
+      contactData,
+      totalPrice: getTotalPrice()
     });
+    toast.success("Order submitted successfully!");
   };
 
   if (showContactForm) {
@@ -125,233 +164,286 @@ export const AlbumFlow = () => {
             Back to Album
           </Button>
         </div>
-        
+
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Your Album</h3>
           <div className="space-y-2">
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <div>
                 <p className="text-sm font-medium">
-                  {ALBUM_SIZES[albumSize as keyof typeof ALBUM_SIZES].name}
+                  {shape === "square" ? "Square" : "Rectangle"} Album • {pageCount} Pages
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {photos.length} photos • {pages.filter(p => p.photos.some(ph => ph !== null)).length} pages
+                  {pages.filter(p => p.images.some(img => img !== null)).length} pages with photos
                 </p>
               </div>
-              <span className="text-sm font-medium">
-                {ALBUM_SIZES[albumSize as keyof typeof ALBUM_SIZES].price} tk
-              </span>
+              <span className="text-sm font-medium">{getTotalPrice()} tk</span>
             </div>
           </div>
         </Card>
-        
+
         <ContactForm onSubmit={handleSubmitOrder} totalPrice={getTotalPrice()} />
       </div>
     );
   }
 
+  const currentLayout = ALBUM_LAYOUTS.find(l => l.id === pages[currentPageIndex]?.layoutId);
+  const layoutPositions = currentLayout ? currentLayout[shape] : [];
+
   return (
     <div className="space-y-6">
-      {/* Upload Section */}
-      <Card className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Create Your Photo Album</h2>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground mb-2">Upload photos for your album</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Currently {photos.length} photos uploaded
-          </p>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-            id="album-upload"
-          />
-          <Label htmlFor="album-upload">
-            <Button variant="outline" asChild>
-              <span>Choose Photos</span>
-            </Button>
-          </Label>
-        </div>
-      </Card>
-
-      {/* Photos Grid */}
-      {photos.length > 0 && (
+      {/* Step 1: Shape Selection */}
+      {step === 1 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Your Photos ({photos.length})</h3>
-          <div className="grid grid-cols-6 gap-2">
-            {photos.map((photo, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={URL.createObjectURL(photo)}
-                  alt={`Photo ${index + 1}`}
-                  className="w-full h-20 object-cover rounded border"
-                />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute -top-2 -right-2 w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removePhoto(index)}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            ))}
+          <h2 className="text-2xl font-semibold mb-4">Step 1: Choose Album Shape</h2>
+          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+            <button
+              onClick={() => {
+                setShape("square");
+                setStep(2);
+              }}
+              className="p-6 border-2 rounded-lg hover:border-primary transition-all hover:shadow-lg"
+            >
+              <div className="aspect-square bg-muted rounded mb-3"></div>
+              <p className="font-semibold">Square Album</p>
+            </button>
+            <button
+              onClick={() => {
+                setShape("rectangle");
+                setStep(2);
+              }}
+              className="p-6 border-2 rounded-lg hover:border-primary transition-all hover:shadow-lg"
+            >
+              <div className="aspect-[4/3] bg-muted rounded mb-3"></div>
+              <p className="font-semibold">Rectangle Album</p>
+            </button>
           </div>
         </Card>
       )}
 
-      {/* Album Configuration */}
-      {photos.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Album Settings</h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Album Size & Type</Label>
-              <Select value={albumSize} onValueChange={setAlbumSize}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ALBUM_SIZES).map(([key, size]) => (
-                    <SelectItem key={key} value={key}>
-                      {size.name} - {size.price} tk ({size.pages} pages)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button onClick={initializePages} disabled={pages.length > 0} className="w-full">
-              <BookOpen className="w-4 h-4 mr-2" />
-              {pages.length > 0 ? "Album Initialized" : "Initialize Album Pages"}
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Page Editor */}
-      {pages.length > 0 && (
+      {/* Step 2: Cover Selection */}
+      {step === 2 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">
-              Page {currentPageIndex + 1} of {pages.length}
-            </h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
-                disabled={currentPageIndex === 0}
+            <h2 className="text-2xl font-semibold">Step 2: Select Cover Image</h2>
+            <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+          </div>
+          <AlbumCoverSelector
+            shape={shape}
+            onCoverSelected={setCoverImage}
+            selectedCover={coverImage}
+          />
+          <Button
+            className="w-full mt-6"
+            onClick={() => setStep(3)}
+            disabled={!coverImage}
+          >
+            Continue
+          </Button>
+        </Card>
+      )}
+
+      {/* Step 3: Page Count Selection */}
+      {step === 3 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold">Step 3: Select Number of Pages</h2>
+            <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+          </div>
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mb-6">
+            {PAGE_OPTIONS.map(count => (
+              <button
+                key={count}
+                onClick={() => setPageCount(count)}
+                className={`p-4 border-2 rounded-lg transition-all ${
+                  pageCount === count
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                    : 'border-border hover:border-primary/50'
+                }`}
               >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1))}
-                disabled={currentPageIndex === pages.length - 1}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+                <p className="text-2xl font-bold">{count}</p>
+                <p className="text-xs text-muted-foreground">pages</p>
+              </button>
+            ))}
+          </div>
+          <div className="p-4 bg-muted rounded-lg mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Estimated Price:</span>
+              <span className="text-lg font-bold">{BASE_PRICE + (pageCount * PRICE_PER_PAGE)} tk</span>
             </div>
           </div>
+          <Button className="w-full" onClick={initializePages}>
+            Continue to Page Layout
+          </Button>
+        </Card>
+      )}
 
-          {/* Layout Selection */}
-          <div className="mb-4">
-            <Label className="mb-2 block">Page Layout</Label>
-            <div className="grid grid-cols-4 gap-2">
-              {Object.entries(PAGE_LAYOUTS).map(([key, layout]) => (
-                <button
-                  key={key}
-                  onClick={() => updatePageLayout(currentPageIndex, key as any)}
-                  className={`p-3 border rounded-lg text-center transition-all ${
-                    pages[currentPageIndex].layout === key
-                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <p className="text-sm font-medium">{layout.name}</p>
-                  <p className="text-xs text-muted-foreground">{layout.slots} slots</p>
-                </button>
-              ))}
+      {/* Step 4: Page Layout & Image Upload */}
+      {step === 4 && pages.length > 0 && (
+        <>
+          {/* Photo Upload Section */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Upload Photos</h3>
+            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mb-4">
+              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground mb-3">
+                {uploadedPhotos.length} photos uploaded
+              </p>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="album-photo-upload"
+              />
+              <Label htmlFor="album-photo-upload">
+                <Button variant="outline" asChild>
+                  <span>Choose Photos</span>
+                </Button>
+              </Label>
             </div>
-          </div>
 
-          {/* Page Preview */}
-          <div className="bg-muted/30 rounded-lg p-8 min-h-[400px] flex items-center justify-center">
-            <div className="bg-white shadow-xl rounded-lg p-6 w-full max-w-2xl aspect-square">
-              <div className={`grid gap-4 h-full ${
-                pages[currentPageIndex].layout === 'single' ? 'grid-cols-1' :
-                pages[currentPageIndex].layout === 'double' ? 'grid-cols-2' :
-                pages[currentPageIndex].layout === 'triple' ? 'grid-cols-3' :
-                'grid-cols-2 grid-rows-2'
-              }`}>
-                {pages[currentPageIndex].photos.map((photo, slotIndex) => (
-                  <div
-                    key={slotIndex}
-                    className="relative border-2 border-dashed border-border rounded-lg overflow-hidden group bg-muted/50"
-                  >
-                    {photo ? (
-                      <>
-                        <img
-                          src={URL.createObjectURL(photo)}
-                          alt={`Slot ${slotIndex + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-2 right-2 w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removePhotoFromPage(currentPageIndex, slotIndex)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground text-center">
-                          Drop photo here or select from library
-                        </p>
-                        <div className="mt-2 max-h-20 overflow-y-auto flex flex-wrap gap-1 justify-center">
-                          {photos.slice(0, 6).map((availPhoto, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => addPhotoToPage(currentPageIndex, slotIndex, availPhoto)}
-                              className="w-10 h-10 rounded border hover:border-primary"
-                            >
-                              <img
-                                src={URL.createObjectURL(availPhoto)}
-                                alt={`Option ${idx}`}
-                                className="w-full h-full object-cover rounded"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+            {uploadedPhotos.length > 0 && (
+              <div className="grid grid-cols-6 gap-2">
+                {uploadedPhotos.map((photo, index) => (
+                  <div key={index} className="aspect-square">
+                    <img
+                      src={URL.createObjectURL(photo)}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-full object-cover rounded border"
+                    />
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            )}
+          </Card>
 
-          {/* Continue Button */}
-          <div className="flex justify-between items-center p-4 bg-muted rounded-lg mt-6">
-            <div>
-              <p className="text-lg font-semibold">Total: {getTotalPrice()} tk</p>
-              <p className="text-muted-foreground">
-                {ALBUM_SIZES[albumSize as keyof typeof ALBUM_SIZES].name}
-              </p>
+          {/* Page Editor */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Page {currentPageIndex + 1} of {pageCount}
+              </h3>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                  disabled={currentPageIndex === 0}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1))}
+                  disabled={currentPageIndex === pages.length - 1}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-            <Button variant="hero" size="lg" onClick={() => setShowContactForm(true)}>
-              Continue to Contact Info
-            </Button>
-          </div>
-        </Card>
+
+            {/* Layout Selection */}
+            <div className="mb-4">
+              <Label className="mb-2 block">Select Page Layout</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {ALBUM_LAYOUTS.map(layout => (
+                  <button
+                    key={layout.id}
+                    onClick={() => updatePageLayout(currentPageIndex, layout.id)}
+                    className={`p-3 border rounded-lg text-center transition-all ${
+                      pages[currentPageIndex].layoutId === layout.id
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <p className="text-xs font-medium">{layout.imageCount} {layout.imageCount === 1 ? 'Image' : 'Images'}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Page Preview */}
+            <div className="bg-muted/30 rounded-lg p-8 min-h-[500px] flex items-center justify-center">
+              <div
+                className={`bg-white shadow-xl rounded-lg p-6 w-full max-w-2xl relative ${
+                  shape === "square" ? "aspect-square" : "aspect-[4/3]"
+                }`}
+              >
+                {layoutPositions.map((pos, slotIndex) => {
+                  const imageData = pages[currentPageIndex].images[slotIndex];
+                  return (
+                    <div
+                      key={slotIndex}
+                      className="absolute border-2 border-dashed border-border rounded overflow-hidden bg-muted/50"
+                      style={{
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        width: `${pos.width}%`,
+                        height: `${pos.height}%`,
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDrop(e, slotIndex)}
+                    >
+                      {imageData ? (
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, slotIndex)}
+                        >
+                          <ImageSlotEditor
+                            image={imageData.file}
+                            onRemove={() => removeImageFromSlot(currentPageIndex, slotIndex)}
+                            zoom={imageData.zoom}
+                            position={imageData.position}
+                            onZoomChange={(zoom) => updateImageZoom(currentPageIndex, slotIndex, zoom)}
+                            onPositionChange={(position) => updateImagePosition(currentPageIndex, slotIndex, position)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                          <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                          <p className="text-xs text-muted-foreground text-center mb-2">
+                            Click to add
+                          </p>
+                          <div className="flex flex-wrap gap-1 justify-center max-h-16 overflow-y-auto">
+                            {uploadedPhotos.slice(0, 4).map((photo, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => addImageToSlot(currentPageIndex, slotIndex, photo)}
+                                className="w-8 h-8 rounded border hover:border-primary"
+                              >
+                                <img
+                                  src={URL.createObjectURL(photo)}
+                                  alt={`Option ${idx}`}
+                                  className="w-full h-full object-cover rounded"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center p-4 bg-muted rounded-lg mt-6">
+              <div>
+                <p className="text-lg font-semibold">Total: {getTotalPrice()} tk</p>
+                <p className="text-sm text-muted-foreground">
+                  {shape === "square" ? "Square" : "Rectangle"} • {pageCount} pages
+                </p>
+              </div>
+              <Button variant="hero" size="lg" onClick={() => setShowContactForm(true)}>
+                Continue to Contact Info
+              </Button>
+            </div>
+          </Card>
+        </>
       )}
     </div>
   );
