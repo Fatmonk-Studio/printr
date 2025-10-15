@@ -16,6 +16,7 @@ import elegantWhiteFrame from "@/assets/frames/elegant-white.png";
 type Format = "HD matte sticker paper" | "3mm Board HD matte pasted frame" | "5mm Board HD matte pasted frame" | "Premium Framed Print with Glass" | "Premium Framed Print without Glass";
 type Size = "8.5x4" | "12x18" | "16x24" | "24x36";
 type FrameType = "classic-wood" | "modern-black" | "elegant-white";
+type BleedType = "no-bleed" | "small-bleed" | "medium-bleed" | "large-bleed";
 
 const sizes: Record<Size, { name: string; price: number }> = {
   "8.5x4": { name: "8.5\" x 4\" - Small", price: 250 },
@@ -38,6 +39,13 @@ const frames: Record<FrameType, { name: string; image: string; price: number }> 
   "elegant-white": { name: "Elegant White", image: elegantWhiteFrame, price: 175 },
 };
 
+const bleeds: Record<BleedType, { name: string }> = {
+  "no-bleed": { name: "No Bleed" },
+  "small-bleed": { name: "Small Bleed" },
+  "medium-bleed": { name: "Medium Bleed" },
+  "large-bleed": { name: "Large Bleed" },
+};
+
 interface PhotoItem {
   id: string;
   file: File;
@@ -47,13 +55,41 @@ interface PhotoItem {
   preview: string;
   cropData?: CropData;
   orientation: "horizontal" | "vertical";
+  bleedType: BleedType;
 }
 
-const sizePreviewDimensions: Record<Size, { width: number; height: number }> = {
-  "8.5x4": { width: 235, height: 100 },
-  "12x18": { width: 235, height: 315 },
-  "16x24": { width: 235, height: 315 },
-  "24x36": { width: 235, height: 315 },
+// Fixed frame dimensions (always uses 12x18 as reference)
+const FIXED_FRAME_DIMENSIONS = {
+  width: 235,
+  height: 315
+};
+
+// Image preview dimensions with bleed options (changes based on selected size and bleed)
+const sizePreviewDimensions: Record<Size, Record<BleedType, { width: number; height: number }>> = {
+  "8.5x4": {
+    "no-bleed": { width: 235, height: 100 },
+    "small-bleed": { width: 220, height: 70 },
+    "medium-bleed": { width: 200, height: 50 },
+    "large-bleed": { width: 180, height: 40 },
+  },
+  "12x18": {
+    "no-bleed": { width: 235, height: 315 },
+    "small-bleed": { width: 220, height: 300 },
+    "medium-bleed": { width: 200, height: 280 },
+    "large-bleed": { width: 180, height: 260 },
+  },
+  "16x24": {
+    "no-bleed": { width: 235, height: 315 },
+    "small-bleed": { width: 220, height: 300 },
+    "medium-bleed": { width: 200, height: 280 },
+    "large-bleed": { width: 180, height: 260 },
+  },
+  "24x36": {
+    "no-bleed": { width: 235, height: 315 },
+    "small-bleed": { width: 220, height: 300 },
+    "medium-bleed": { width: 200, height: 280 },
+    "large-bleed": { width: 180, height: 260 },
+  },
 };
 
 export const FrameFlow = () => {
@@ -76,6 +112,7 @@ export const FrameFlow = () => {
             preview: e.target?.result as string,
             cropData: { x: 0, y: 0, scale: 1 },
             orientation: "horizontal",
+            bleedType: "no-bleed",
           };
           setPhotos(prev => [...prev, newPhoto]);
         };
@@ -225,7 +262,7 @@ export const FrameFlow = () => {
 
                     {/* Fixed Frame Container */}
                     <div className="relative flex justify-center items-center" style={{ 
-                      minHeight: `${sizePreviewDimensions["12x18"].height * 1.3}px` 
+                      minHeight: `${FIXED_FRAME_DIMENSIONS.height * 1.3}px` 
                     }}>
                       {/* Image Canvas - Dynamic size based on selected size */}
                       <div style={{
@@ -238,18 +275,18 @@ export const FrameFlow = () => {
                         <ImagePreviewCanvas
                           imageUrl={photo.preview}
                           width={photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions[photo.size].width 
-                            : sizePreviewDimensions[photo.size].height}
+                            ? sizePreviewDimensions[photo.size][photo.bleedType].width 
+                            : sizePreviewDimensions[photo.size][photo.bleedType].height}
                           height={photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions[photo.size].height 
-                            : sizePreviewDimensions[photo.size].width}
+                            ? sizePreviewDimensions[photo.size][photo.bleedType].height 
+                            : sizePreviewDimensions[photo.size][photo.bleedType].width}
                           onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
                           showControls={false}
                           initialCropData={photo.cropData}
                         />
                       </div>
                       
-                      {/* Frame overlay - Fixed at 12x18 size */}
+                      {/* Frame overlay - Fixed size using FIXED_FRAME_DIMENSIONS */}
                       <img
                         src={frames[photo.frameType].image}
                         alt="Frame overlay"
@@ -259,11 +296,11 @@ export const FrameFlow = () => {
                           top: '50%',
                           left: '50%',
                           width: `${(photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions["12x18"].width 
-                            : sizePreviewDimensions["12x18"].height) * 1.9}px`,
+                            ? FIXED_FRAME_DIMENSIONS.width 
+                            : FIXED_FRAME_DIMENSIONS.height) * 1.9}px`,
                           height: `${(photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions["12x18"].height 
-                            : sizePreviewDimensions["12x18"].width) * 1.9}px`,
+                            ? FIXED_FRAME_DIMENSIONS.height 
+                            : FIXED_FRAME_DIMENSIONS.width) * 1.9}px`,
                           objectFit: 'contain',
                           transform: `translate(-50%, -50%) ${photo.orientation === "horizontal" ? "rotate(90deg)" : ""}`,
                           zIndex: 2
@@ -390,6 +427,25 @@ export const FrameFlow = () => {
                           {Object.entries(sizes).map(([key, size]) => (
                             <SelectItem key={key} value={key}>
                               {size.name} - {size.price} tk
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Bleed</Label>
+                      <Select
+                        value={photo.bleedType}
+                        onValueChange={(value: BleedType) => updatePhoto(photo.id, { bleedType: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(bleeds).map(([key, bleed]) => (
+                            <SelectItem key={key} value={key}>
+                              {bleed.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
