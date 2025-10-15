@@ -1,11 +1,15 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-interface ImagePreviewCanvasProps {
+export interface ImagePreviewCanvasProps {
   imageUrl: string;
   width: number;
   height: number;
   onCropChange?: (cropData: CropData) => void;
+  showControls?: boolean; // New prop to control if controls are shown
+  initialCropData?: CropData; // Initial crop data from parent
+  onReset?: () => void; // Reset callback
+  onScaleChange?: (scale: number) => void; // Scale change callback
 }
 
 export interface CropData {
@@ -14,12 +18,32 @@ export interface CropData {
   scale: number;
 }
 
-export const ImagePreviewCanvas = ({ imageUrl, width, height, onCropChange }: ImagePreviewCanvasProps) => {
+export const ImagePreviewCanvas = ({ 
+  imageUrl, 
+  width, 
+  height, 
+  onCropChange, 
+  showControls = true,
+  initialCropData,
+  onReset,
+  onScaleChange
+}: ImagePreviewCanvasProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ 
+    x: initialCropData?.x || 0, 
+    y: initialCropData?.y || 0 
+  });
+  const [scale, setScale] = useState(initialCropData?.scale || 1);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Sync with external crop data changes
+  useEffect(() => {
+    if (initialCropData) {
+      setImagePosition({ x: initialCropData.x, y: initialCropData.y });
+      setScale(initialCropData.scale);
+    }
+  }, [initialCropData]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDragging(true);
@@ -51,6 +75,7 @@ export const ImagePreviewCanvas = ({ imageUrl, width, height, onCropChange }: Im
 
   const handleScaleChange = (newScale: number) => {
     setScale(newScale);
+    onScaleChange?.(newScale);
     onCropChange?.({
       x: imagePosition.x,
       y: imagePosition.y,
@@ -61,89 +86,87 @@ export const ImagePreviewCanvas = ({ imageUrl, width, height, onCropChange }: Im
   const resetPosition = () => {
     setImagePosition({ x: 0, y: 0 });
     setScale(1);
+    onReset?.();
     onCropChange?.({ x: 0, y: 0, scale: 1 });
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium">Preview & Crop</h4>
-        <Button variant="outline" size="sm" onClick={resetPosition}>
-          Reset
-        </Button>
-      </div>
+    <>
+      {showControls && (
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-medium">Preview & Crop</h4>
+          <Button variant="outline" size="sm" onClick={resetPosition}>
+            Reset
+          </Button>
+        </div>
+      )}
       
-      {/* Canvas Container */}
-      <div
-        ref={canvasRef}
-        className="relative bg-white border-2 border-dashed border-border rounded-lg mx-auto overflow-hidden cursor-move"
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          maxWidth: "100%",
-          aspectRatio: `${width}/${height}`,
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <img
-          src={imageUrl}
-          alt="Preview"
-          className="absolute select-none pointer-events-none"
+      {/* Canvas Container - Isolated for frame overlay */}
+      <div className="flex justify-center items-center">
+        <div
+          ref={canvasRef}
+          className="relative bg-white border-2 border-dashed border-border overflow-hidden cursor-move"
           style={{
-            transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${scale})`,
-            transformOrigin: "top left",
-            transition: isDragging ? "none" : "transform 0.1s ease-out",
+            width: `${width}px`,
+            height: `${height}px`,
+            maxWidth: "100%",
+            aspectRatio: `${width}/${height}`,
           }}
-          draggable={false}
-        />
-        
-        {/* Overlay Instructions */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="bg-black/50 text-white px-3 py-1 rounded text-sm opacity-75">
-            Drag to position • Scroll to zoom
-          </div>
-        </div>
-      </div>
-
-      {/* Scale Controls */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Zoom</span>
-          <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleScaleChange(Math.max(0.1, scale - 0.1))}
-          >
-            -
-          </Button>
-          <input
-            type="range"
-            min="0.1"
-            max="3"
-            step="0.1"
-            value={scale}
-            onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
-            className="flex-1"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="absolute select-none pointer-events-none"
+            style={{
+              transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${scale})`,
+              transformOrigin: "top left",
+              transition: isDragging ? "none" : "transform 0.1s ease-out",
+            }}
+            draggable={false}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleScaleChange(Math.min(3, scale + 0.1))}
-          >
-            +
-          </Button>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground text-center">
-        Drag the image to position it within the print area. Use zoom controls to scale.
-      </p>
-    </div>
+      {showControls && (
+        <>
+          {/* Scale Controls - Separate from canvas */}
+          <div className="space-y-2 pt-10">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Zoom</span>
+              <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleScaleChange(Math.max(0.1, scale - 0.1))}
+              >
+                -
+              </Button>
+              <input
+                type="range"
+                min="0.1"
+                max="3"
+                step="0.1"
+                value={scale}
+                onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleScaleChange(Math.min(3, scale + 0.1))}
+              >
+                +
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 };

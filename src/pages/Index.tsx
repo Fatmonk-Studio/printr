@@ -85,7 +85,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      {/* <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={heroImage}
@@ -107,16 +107,16 @@ const Index = () => {
             Start Creating
           </Button>
         </div>
-      </section>
+      </section> */}
 
       {/* Products Section */}
       <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
+        {/* <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-foreground mb-4">Choose Your Product</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Select from our range of professional photo products, each crafted with attention to detail and quality.
           </p>
-        </div>
+        </div> */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {products.map((product) => (
@@ -132,7 +132,7 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="bg-card py-16">
+      {/* <section className="bg-card py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-foreground mb-8">Why Choose Us?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
@@ -159,7 +159,7 @@ const Index = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 };

@@ -50,10 +50,10 @@ interface PhotoItem {
 }
 
 const sizePreviewDimensions: Record<Size, { width: number; height: number }> = {
-  "8.5x4": { width: 212, height: 100 },
-  "12x18": { width: 200, height: 300 },
-  "16x24": { width: 200, height: 300 },
-  "24x36": { width: 200, height: 300 },
+  "8.5x4": { width: 235, height: 100 },
+  "12x18": { width: 235, height: 315 },
+  "16x24": { width: 235, height: 315 },
+  "24x36": { width: 235, height: 315 },
 };
 
 export const FrameFlow = () => {
@@ -207,28 +207,129 @@ export const FrameFlow = () => {
                     </div>
                   </div>
                   
-                  <div className="relative inline-block">
-                    <ImagePreviewCanvas
-                      imageUrl={photo.preview}
-                      width={photo.orientation === "horizontal" 
-                        ? sizePreviewDimensions[photo.size].width 
-                        : sizePreviewDimensions[photo.size].height}
-                      height={photo.orientation === "horizontal" 
-                        ? sizePreviewDimensions[photo.size].height 
-                        : sizePreviewDimensions[photo.size].width}
-                      onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
-                    />
-                    <img
-                      src={frames[photo.frameType].image}
-                      alt="Frame overlay"
-                      className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                      style={{ mixBlendMode: 'multiply' }}
-                    />
+                  {/* Frame Preview Container with fixed size */}
+                  <div className="space-y-4">
+                    {/* Fixed position controls - above frame */}
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Preview & Crop</h4>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          updatePhotoCrop(photo.id, { x: 0, y: 0, scale: 1 });
+                        }}
+                      >
+                        Reset
+                      </Button>
+                    </div>
+
+                    {/* Fixed Frame Container */}
+                    <div className="relative flex justify-center items-center" style={{ 
+                      minHeight: `${sizePreviewDimensions["12x18"].height * 1.3}px` 
+                    }}>
+                      {/* Image Canvas - Dynamic size based on selected size */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 1
+                      }}>
+                        <ImagePreviewCanvas
+                          imageUrl={photo.preview}
+                          width={photo.orientation === "horizontal" 
+                            ? sizePreviewDimensions[photo.size].width 
+                            : sizePreviewDimensions[photo.size].height}
+                          height={photo.orientation === "horizontal" 
+                            ? sizePreviewDimensions[photo.size].height 
+                            : sizePreviewDimensions[photo.size].width}
+                          onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
+                          showControls={false}
+                          initialCropData={photo.cropData}
+                        />
+                      </div>
+                      
+                      {/* Frame overlay - Fixed at 12x18 size */}
+                      <img
+                        src={frames[photo.frameType].image}
+                        alt="Frame overlay"
+                        className={`absolute pointer-events-none transition-transform duration-300`}
+                        style={{ 
+                          mixBlendMode: 'multiply',
+                          top: '50%',
+                          left: '50%',
+                          width: `${(photo.orientation === "horizontal" 
+                            ? sizePreviewDimensions["12x18"].width 
+                            : sizePreviewDimensions["12x18"].height) * 1.9}px`,
+                          height: `${(photo.orientation === "horizontal" 
+                            ? sizePreviewDimensions["12x18"].height 
+                            : sizePreviewDimensions["12x18"].width) * 1.9}px`,
+                          objectFit: 'contain',
+                          transform: `translate(-50%, -50%) ${photo.orientation === "horizontal" ? "rotate(90deg)" : ""}`,
+                          zIndex: 2
+                        }}
+                      />
+                    </div>
+
+                    {/* Fixed position zoom controls - below frame */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Zoom</span>
+                        <span className="text-sm text-muted-foreground">
+                          {Math.round((photo.cropData?.scale || 1) * 100)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newScale = Math.max(0.1, (photo.cropData?.scale || 1) - 0.1);
+                            updatePhotoCrop(photo.id, { 
+                              x: photo.cropData?.x || 0, 
+                              y: photo.cropData?.y || 0, 
+                              scale: newScale 
+                            });
+                          }}
+                        >
+                          -
+                        </Button>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={photo.cropData?.scale || 1}
+                          onChange={(e) => {
+                            updatePhotoCrop(photo.id, {
+                              x: photo.cropData?.x || 0,
+                              y: photo.cropData?.y || 0,
+                              scale: parseFloat(e.target.value)
+                            });
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newScale = Math.min(3, (photo.cropData?.scale || 1) + 0.1);
+                            updatePhotoCrop(photo.id, { 
+                              x: photo.cropData?.x || 0, 
+                              y: photo.cropData?.y || 0, 
+                              scale: newScale 
+                            });
+                          }}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   
-                  <p className="text-sm text-muted-foreground truncate">
+                  {/* <p className="text-sm text-muted-foreground truncate">
                     📁 {photo.file.name} ({photo.orientation})
-                  </p>
+                  </p> */}
                 </div>
 
                 {/* Configuration */}
@@ -248,7 +349,7 @@ export const FrameFlow = () => {
                               : 'border-border hover:border-primary/50'
                           }`}
                         >
-                          <img src={frame.image} alt={frame.name} className="w-full h-12 object-cover mb-1 rounded" />
+                          <img src={frame.image} alt={frame.name} className="w-full h-12 object-contain mb-1 rounded bg-gray-50" />
                           <p className="font-medium">{frame.name}</p>
                           <p className="text-xs text-muted-foreground">+{frame.price} tk</p>
                         </button>
