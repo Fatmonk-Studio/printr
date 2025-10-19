@@ -82,9 +82,12 @@ export const CollageFlow = () => {
           aspectRatio: "1/1"
         },
         2: {
-          containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-2 gap-2",
-          itemClasses: ["col-span-1 aspect-square", "col-span-1 aspect-square"],
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-4 gap-2",
+          itemClasses: [
+            "col-span-2 row-span-4 aspect-[1/2]",  // item1: Left side (spans 2 cols, 4 rows)
+            "col-span-2 row-span-4 aspect-[1/2]"   // item2: Right side (spans 2 cols, 4 rows)
+          ],
           aspectRatio: "1/1"
         },
         3: {
@@ -179,45 +182,49 @@ export const CollageFlow = () => {
           aspectRatio: "1/1"
         },
         10: {
-          containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-3 gap-2",
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-4 gap-2",
           itemClasses: [
-            "col-span-2 row-span-2 aspect-square",  // Large hero image (top-left, 2x2)
-            "col-span-1 row-span-1 aspect-square", // Top right 1
-            "col-span-1 row-span-1 aspect-square", // Top right 2
-            "col-span-1 row-span-1 aspect-square", // Middle right 1
-            "col-span-1 row-span-1 aspect-square", // Middle right 2
-            "col-span-1 row-span-1 aspect-square", // Bottom row 1
-            "col-span-1 row-span-1 aspect-square", // Bottom row 2
-            "col-span-1 row-span-1 aspect-square", // Bottom row 3
-            "col-span-1 row-span-1 aspect-square"  // Bottom row 4
+            "col-span-2 row-span-2 aspect-square",     // item1: Large left (spans 2 cols, 2 rows)
+            "col-span-2 row-span-1 aspect-[2/1]",      // item2: Top right wide (spans 2 cols)
+            "col-span-1 row-span-1 aspect-square",     // item3: Mid right 1
+            "col-span-1 row-span-1 aspect-square",     // item4: Mid right 2
+            "col-span-1 row-span-1 aspect-square",     // item5: Row 3, Col 1
+            "col-span-1 row-span-1 aspect-square",     // item6: Row 3, Col 2
+            "col-span-2 row-span-1 aspect-[2/1]",      // item7: Row 3, wide right (spans 2 cols)
+            "col-span-2 row-span-1 aspect-[2/1]",      // item8: Row 4, left wide (spans 2 cols)
+            "col-span-1 row-span-1 aspect-square",     // item9: Row 4, Col 3
+            "col-span-1 row-span-1 aspect-square"      // item10: Row 4, Col 4
           ],
           aspectRatio: "1/1"
         }
       };
       return squareLayouts[count as keyof typeof squareLayouts] || squareLayouts[1];
     } else {
-      // Rectangle layouts - optimized for 4:3 or 16:9 aspect ratio
+      // Rectangle layouts - same structure as square, with wider aspect ratios (reduced height)
       const rectangleLayouts = {
         1: {
-          containerClass: "w-full max-w-2xl mx-auto",
+          containerClass: "w-full max-w-md mx-auto",
           gridClass: "grid grid-cols-1",
           itemClasses: ["col-span-1 aspect-[4/3]"],
           aspectRatio: "4/3"
         },
         2: {
-          containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-2 gap-2",
-          itemClasses: ["col-span-1 aspect-[4/3]", "col-span-1 aspect-[4/3]"],
+          containerClass: "w-full max-w-5xl mx-auto",
+          gridClass: "grid grid-cols-4 gap-2",
+          itemClasses: [
+            "col-span-2 row-span-4 aspect-[2/3]",  // item1: Left side (wider than square's 1/2)
+            "col-span-2 row-span-4 aspect-[2/3]"   // item2: Right side (wider than square's 1/2)
+          ],
           aspectRatio: "4/3"
         },
         3: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-2 gap-2",
+          gridClass: "grid grid-cols-2 grid-rows-2 gap-2",
           itemClasses: [
-            "col-span-2 row-span-2 aspect-[4/3]", // Large image on left (spans 2 rows)
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right image
-            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right image
+            "col-span-2 row-span-1 aspect-[3/1]", // Wide top image (wider than square's 2/1)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right (wider than square)
           ],
           aspectRatio: "4/3"
         },
@@ -233,88 +240,89 @@ export const CollageFlow = () => {
           aspectRatio: "4/3"
         },
         5: {
-          containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-2 gap-2",
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
           itemClasses: [
-            "col-span-2 row-span-2 aspect-[4/3]", // Large center piece
-            "col-span-1 row-span-1 aspect-[4/3]",   // Top right 1
-            "col-span-1 row-span-1 aspect-[4/3]",   // Top right 2
-            "col-span-1 row-span-1 aspect-[4/3]",  // Bottom right 1
-            "col-span-1 row-span-1 aspect-[4/3]"    // Bottom right 2
+            "col-span-2 row-span-2 aspect-[4/3]", // Large center piece (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",   // Top right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",   // Middle right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",  // Bottom left (wider than square)
+            "col-span-2 row-span-1 aspect-[3/1]"    // Bottom center-right (wider than square's 2/1)
           ],
           aspectRatio: "4/3"
         },
         6: {
-          containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-2 gap-2",
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
           itemClasses: [
-            "col-span-1 row-span-1 aspect-[4/3]", // Top left
-            "col-span-1 row-span-1 aspect-[4/3]", // Top center
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom center
-            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right
+            "col-span-2 row-span-2 aspect-[4/3]", // Large main image (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right (wider than square)
           ],
           aspectRatio: "4/3"
         },
         7: {
-          containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-2 gap-2",
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
           itemClasses: [
-            "col-span-2 row-span-1 aspect-[2/1]", // Wide top image
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom center left
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom center right
-            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right
+            "col-span-1 row-span-1 aspect-[4/3]", // Top left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle right (wider than square)
+            "col-span-3 row-span-1 aspect-[4/1]"   // Bottom wide (wider than square's 3/1)
           ],
           aspectRatio: "4/3"
         },
         8: {
-          containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-2 gap-2",
+          containerClass: "w-full max-w-4xl mx-auto",
+          gridClass: "grid grid-cols-4 grid-rows-4 gap-2",
           itemClasses: [
-            "col-span-1 row-span-1 aspect-[4/3]", // Top row 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Top row 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Top row 3
-            "col-span-1 row-span-1 aspect-[4/3]", // Top row 4
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 3
-            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom row 4
+            "col-span-2 row-span-2 aspect-[4/3]", // Center piece (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top right 1 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top right 2 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle right 1 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle right 2 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left 1 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left 2 (wider than square)
+            "col-span-2 row-span-1 aspect-[3/1]"   // Bottom right wide (wider than square's 2/1)
           ],
           aspectRatio: "4/3"
         },
         9: {
-          containerClass: "w-full max-w-6xl mx-auto",
+          containerClass: "w-full max-w-4xl mx-auto",
           gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
           itemClasses: [
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 1, Col 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 1, Col 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 1, Col 3
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 2, Col 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 2, Col 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 2, Col 3
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 3, Col 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Row 3, Col 2
-            "col-span-1 row-span-1 aspect-[4/3]"  // Row 3, Col 3
+            "col-span-1 row-span-1 aspect-[4/3]", // Top left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Top right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Middle right (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom left (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]", // Bottom center (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom right (wider than square)
           ],
           aspectRatio: "4/3"
         },
         10: {
-          containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-3 gap-2",
+          containerClass: "w-full max-w-5xl mx-auto",
+          gridClass: "grid grid-cols-4 gap-2",
           itemClasses: [
-            "col-span-2 row-span-2 aspect-[4/3]",  // Large hero image (left side, 2x2)
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Top right 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Middle right 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Middle right 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 1
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 2
-            "col-span-1 row-span-1 aspect-[4/3]", // Bottom row 3
-            "col-span-1 row-span-1 aspect-[4/3]"  // Bottom row 4
+            "col-span-2 row-span-2 aspect-[4/3]",     // item1: Large left (wider than square)
+            "col-span-2 row-span-1 aspect-[3/1]",      // item2: Top right wide (wider than square's 2/1)
+            "col-span-1 row-span-1 aspect-[4/3]",     // item3: Mid right 1 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",     // item4: Mid right 2 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",     // item5: Row 3, Col 1 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]",     // item6: Row 3, Col 2 (wider than square)
+            "col-span-2 row-span-1 aspect-[3/1]",      // item7: Row 3, wide right (wider than square's 2/1)
+            "col-span-2 row-span-1 aspect-[3/1]",      // item8: Row 4, left wide (wider than square's 2/1)
+            "col-span-1 row-span-1 aspect-[4/3]",     // item9: Row 4, Col 3 (wider than square)
+            "col-span-1 row-span-1 aspect-[4/3]"      // item10: Row 4, Col 4 (wider than square)
           ],
           aspectRatio: "4/3"
         }

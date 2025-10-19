@@ -8,6 +8,13 @@ import { CollageFlow } from "@/components/CollageFlow";
 import { AlbumFlow } from "@/components/AlbumFlow";
 import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
+import { Navigation } from "@/components/Navigation";
+import { Hero } from "@/components/Hero";
+import { Features } from "@/components/Features";
+import { Services } from "@/components/Services";
+import { HowItWorks } from "@/components/HowItWorks";
+import Footer from "@/components/Footer";
+import CallToAction from "@/components/CallToAction";
 
 type ProductFlow = "home" | "print" | "frame" | "collage" | "album";
 
@@ -84,7 +91,15 @@ const Index = () => {
   // Home page
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      <Navigation />
       {/* Hero Section */}
+      <Hero onProductSelect={handleProductClick} />
+      <Features />
+      <Services />
+      <HowItWorks />
+  <CallToAction />
+      <Footer />
+
       {/* <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -110,13 +125,13 @@ const Index = () => {
       </section> */}
 
       {/* Products Section */}
-      <section className="container mx-auto px-4 py-16">
-        {/* <div className="text-center mb-12">
+      {/* <section className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-foreground mb-4">Choose Your Product</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Select from our range of professional photo products, each crafted with attention to detail and quality.
           </p>
-        </div> */}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {products.map((product) => (
@@ -129,7 +144,7 @@ const Index = () => {
             />
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* Features Section */}
       {/* <section className="bg-card py-16">
