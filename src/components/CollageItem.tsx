@@ -11,6 +11,7 @@ interface CollageItemProps {
   onRemove: (index: number) => void;
   totalImages: number;
   layoutClass: string;
+  onTransformChange?: (id: string, scale: number, position: { x: number; y: number }) => void;
 }
 
 const CollageItem: React.FC<CollageItemProps> = ({
@@ -19,6 +20,7 @@ const CollageItem: React.FC<CollageItemProps> = ({
   index,
   onRemove,
   layoutClass,
+  onTransformChange,
 }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -55,14 +57,16 @@ const CollageItem: React.FC<CollageItemProps> = ({
     initialPos.current = { ...position };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
       const deltaX = e.clientX - dragStartPos.current.x;
       const deltaY = e.clientY - dragStartPos.current.y;
       
-      setPosition({
-        x: initialPos.current.x + deltaX * 0.3,
-        y: initialPos.current.y + deltaY * 0.3,
-      });
+      const newPosition = {
+        x: initialPos.current.x + deltaX,
+        y: initialPos.current.y + deltaY,
+      };
+      
+      setPosition(newPosition);
+      onTransformChange?.(id, scale, newPosition);
     };
 
     const handleMouseUp = () => {
@@ -80,19 +84,25 @@ const CollageItem: React.FC<CollageItemProps> = ({
     e.preventDefault();
     e.stopPropagation();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
+    const newScale = Math.max(0.5, Math.min(3, scale + delta));
+    setScale(newScale);
+    onTransformChange?.(id, newScale, position);
   };
 
   const handleZoomIn = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setScale(prev => Math.min(3, prev + 0.1));
+    const newScale = Math.min(3, scale + 0.1);
+    setScale(newScale);
+    onTransformChange?.(id, newScale, position);
   };
 
   const handleZoomOut = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setScale(prev => Math.max(0.5, prev - 0.1));
+    const newScale = Math.max(0.5, scale - 0.1);
+    setScale(newScale);
+    onTransformChange?.(id, newScale, position);
   };
 
   const handleReset = (e: React.MouseEvent) => {
@@ -100,6 +110,7 @@ const CollageItem: React.FC<CollageItemProps> = ({
     e.stopPropagation();
     setScale(1);
     setPosition({ x: 0, y: 0 });
+    onTransformChange?.(id, 1, { x: 0, y: 0 });
   };
 
   const handleClick = (e: React.MouseEvent) => {

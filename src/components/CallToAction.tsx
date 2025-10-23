@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { XMarkIcon, ArrowLongRightIcon } from '@heroicons/react/24/solid';
-import { Link } from 'react-router-dom';
 import { CreateIcon } from '@/assets/Icons/CreateIcon';
 import { HappinessIcon } from '@/assets/Icons/HappinessIcon';
 import { QualityIcon } from '@/assets/Icons/QualityIcon';
+import { ProductSelectionModal } from '@/components/ProductSelectionModal';
 
-const CallToAction = () => {
+interface CallToActionProps {
+  onProductSelect?: (productId: string) => void;
+}
+
+const CallToAction = ({ onProductSelect }: CallToActionProps) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const toggleModal = () => {
-        setIsModalOpen(!isModalOpen);
+    const handleProductSelect = (productId: string) => {
+        if (onProductSelect) {
+            onProductSelect(productId);
+        }
     };
 
     return (
@@ -23,7 +28,7 @@ const CallToAction = () => {
                             Experience the Shutterfly Difference
                         </h2>
                         <button
-                            onClick={toggleModal}
+                            onClick={() => setIsModalOpen(true)}
                             className="flex items-center gap-2 mt-4 text-sm text-black bg-white px-5 py-2 rounded-full hover:shadow-md"
                         >
                             <p>Upload Photos</p>
@@ -68,45 +73,12 @@ const CallToAction = () => {
                 </div>
             </div>
 
-            {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]">
-                    <div className="relative bg-white dark:bg-[#1a1a1a] rounded-lg p-5 w-[95%] max-w-xl shadow-lg">
-                        {/* Close Button */}
-                        <button
-                            className="absolute top-3 right-3 text-black dark:text-white text-lg font-bold hover:text-red-500"
-                            onClick={toggleModal}
-                        >
-                            <XMarkIcon className="size-7 bg-[#DDDDDD] dark:bg-[#444444] p-1 rounded-full text-black dark:text-white" />
-                        </button>
-
-                        {/* Modal Content */}
-                        <h2 className="text-center text-3xl font-bold text-black dark:text-white mb-6 mt-6">
-                            Our Services
-                        </h2>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:mx-10 mx-3 pb-7">
-                            {[
-                                { to: "/print", img: "/popup/print2.png", text: "Print Photos" },
-                                { to: "/frame", img: "/popup/frame2.png", text: "Frame Photos" },
-                                { to: "/photo-collage", img: "/popup/collages2.png", text: "Custom Photo Collages" },
-                                { to: "/photo-album", img: "/popup/albums2.png", text: "Custom Photo Albums" },
-                            ].map((service, idx) => (
-                                <Link
-                                    key={idx}
-                                    to={service.to}
-                                    className="cursor-pointer flex items-center gap-2 bg-[#CACEFF] bg-opacity-20 px-4 py-3 rounded-full hover:shadow-md"
-                                >
-                                    <img src={service.img} alt={service.text} />
-                                    <p className="text-sm lg:text-lg text-black dark:text-white font-normal">
-                                        {service.text}
-                                    </p>
-                                    <ArrowLongRightIcon className="size-5 text-black dark:text-white" />
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Product Selection Modal */}
+            <ProductSelectionModal
+                open={isModalOpen}
+                onOpenChange={setIsModalOpen}
+                onProductSelect={handleProductSelect}
+            />
         </div>
     );
 };

@@ -152,8 +152,190 @@ export const FrameFlow = () => {
     );
   };
 
-  const handleSubmitOrder = (contactData: ContactFormData) => {
-    console.log('Frame order submitted:', { photos, contactData, totalPrice: getTotalPrice() });
+  const getDeliveryCharge = (contactData: ContactFormData) => {
+    if (contactData.paymentMethod === "cod" && contactData.deliveryLocation === "inside-dhaka") {
+      return 50;
+    }
+    return 0;
+  };
+
+  // Function to create cropped image from the raw file
+  const createCroppedImage = async (photo: PhotoItem): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        // Get the preview dimensions for this photo
+        const previewDim = sizePreviewDimensions[photo.size][photo.bleedType];
+        
+        // Calculate scale factor to maintain aspect ratio
+        const scaleX = img.width / previewDim.width;
+        const scaleY = img.height / previewDim.height;
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Calculate actual crop dimensions in original image coordinates
+        const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };
+        
+        // Set canvas to preview dimensions (we'll scale it up later if needed)
+        canvas.width = previewDim.width * 2; // 2x for better quality
+        canvas.height = previewDim.height * 2;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Apply transformations
+        ctx.save();
+        ctx.translate(cropData.x * 2, cropData.y * 2);
+        ctx.scale(cropData.scale, cropData.scale);
+        
+        // Calculate dimensions to fill canvas
+        const imgAspect = img.width / img.height;
+        const canvasAspect = canvas.width / canvas.height;
+        
+        let drawWidth, drawHeight;
+        if (imgAspect > canvasAspect) {
+          drawHeight = canvas.height / cropData.scale;
+          drawWidth = drawHeight * imgAspect;
+        } else {
+          drawWidth = canvas.width / cropData.scale;
+          drawHeight = drawWidth / imgAspect;
+        }
+        
+        // Center the image
+        const offsetX = (canvas.width / cropData.scale - drawWidth) / 2;
+        const offsetY = (canvas.height / cropData.scale - drawHeight) / 2;
+        
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+        ctx.restore();
+
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Could not create blob'));
+          }
+        }, 'image/jpeg', 0.95);
+      };
+      
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = photo.preview;
+    });
+  };
+
+  const handleSubmitOrder = async (contactData: ContactFormData) => {
+    try {
+      toast.loading("Processing your framed photos...");
+      
+      // Process all images to create cropped versions
+      const processedPhotos = await Promise.all(
+        photos.map(async (photo) => {
+          const croppedImageBlob = await createCroppedImage(photo);
+          
+          return {
+            id: photo.id,
+            originalFileName: photo.file.name,
+            croppedImageBlob: croppedImageBlob,
+            croppedImageSize: croppedImageBlob.size,
+            format: photo.format,
+            size: photo.size,
+            sizeDetails: sizes[photo.size],
+            frameType: photo.frameType,
+            frameDetails: frames[photo.frameType],
+            orientation: photo.orientation,
+            bleedType: photo.bleedType,
+            bleedDetails: bleeds[photo.bleedType],
+            price: sizes[photo.size].price + frames[photo.frameType].price,
+            cropData: photo.cropData,
+          };
+        })
+      );
+
+      // Prepare the complete order data
+      const orderData = {
+        customer: {
+          name: contactData.name,
+          phone: contactData.phone,
+          location: contactData.location,
+          additionalInfo: contactData.additionalInfo,
+        },
+        payment: {
+          method: contactData.paymentMethod,
+          deliveryLocation: contactData.deliveryLocation,
+          deliveryCharge: getDeliveryCharge(contactData),
+        },
+        pricing: {
+          subtotal: getTotalPrice(),
+          deliveryCharge: getDeliveryCharge(contactData),
+          total: getTotalPrice() + getDeliveryCharge(contactData),
+        },
+        photos: processedPhotos.map(({ croppedImageBlob, ...photoMeta }) => photoMeta),
+        metadata: {
+          orderDate: new Date().toISOString(),
+          totalPhotos: photos.length,
+          serviceType: "frame",
+        }
+      };
+
+      // Log the complete order structure
+      console.log('╔═══════════════════════════════════════════════════════════════╗');
+      console.log('║          FRAME ORDER SUBMISSION - COMPLETE DATA               ║');
+      console.log('╚═══════════════════════════════════════════════════════════════╝\n');
+      
+      console.log('📦 COMPLETE ORDER OBJECT:');
+      const logData = {
+        ...orderData,
+        photos: orderData.photos.map((p, index) => {
+          const processed = processedPhotos[index];
+          const blobSize = (processed.croppedImageBlob.size / 1024 / 1024).toFixed(2);
+          return {
+            ...p,
+            croppedImageFile: `Cropped JPEG Blob (${blobSize} MB)`,
+          };
+        })
+      };
+      console.log(JSON.stringify(logData, null, 2));
+
+      console.log('\n╔═══════════════════════════════════════════════════════════════╗');
+      console.log('║              CROPPED IMAGES & FRAME DETAILS                   ║');
+      console.log('╚═══════════════════════════════════════════════════════════════╝\n');
+      
+      processedPhotos.forEach((photo, index) => {
+        console.log(`🖼️  Photo ${index + 1}:`);
+        console.log(`   Original: ${photo.originalFileName}`);
+        console.log(`   Cropped Size: ${(photo.croppedImageBlob.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`   Print Format: ${photo.format}`);
+        console.log(`   Print Size: ${photo.sizeDetails.name}`);
+        console.log(`   Frame: ${photo.frameDetails.name} (${photo.frameDetails.price} tk)`);
+        console.log(`   Orientation: ${photo.orientation}`);
+        console.log(`   Bleed: ${photo.bleedDetails.name}`);
+        console.log(`   Print Price: ${photo.sizeDetails.price} tk`);
+        console.log(`   Total Price: ${photo.price} tk`);
+        console.log(`   Crop Data: Scale=${photo.cropData?.scale}, X=${photo.cropData?.x}, Y=${photo.cropData?.y}`);
+        console.log('');
+      });
+
+      console.log('\n💰 PRICING SUMMARY:');
+      console.log(`   Subtotal: ${orderData.pricing.subtotal} tk`);
+      console.log(`   Delivery: ${orderData.pricing.deliveryCharge} tk`);
+      console.log(`   Total: ${orderData.pricing.total} tk`);
+
+      toast.dismiss();
+      toast.success("Frame order data logged to console!");
+      
+    } catch (error) {
+      console.error('Order processing error:', error);
+      toast.dismiss();
+      toast.error('Failed to process order. Please try again.');
+    }
   };
 
   if (showContactForm) {

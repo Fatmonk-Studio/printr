@@ -143,16 +143,246 @@ export const AlbumFlow = () => {
     return BASE_PRICE + (pageCount * PRICE_PER_PAGE);
   };
 
-  const handleSubmitOrder = (contactData: ContactFormData) => {
-    console.log('Album order submitted:', {
-      shape,
-      coverImage,
-      pageCount,
-      pages,
-      contactData,
-      totalPrice: getTotalPrice()
-    });
-    toast.success("Order submitted successfully!");
+  const getDeliveryCharge = (contactData: ContactFormData) => {
+    if (contactData.paymentMethod === 'cod' && contactData.deliveryLocation === 'inside-dhaka') {
+      return 50;
+    }
+    return 0;
+  };
+
+  // Function to create edited version of image with zoom and position
+  const createEditedImage = async (imageData: ImageData, width: number, height: number): Promise<Blob | null> => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return null;
+
+      const img = new Image();
+      const imageUrl = URL.createObjectURL(imageData.file);
+      
+      return new Promise((resolve) => {
+        img.onload = () => {
+          // Fill background
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+
+          // Apply zoom and position transformations
+          ctx.save();
+          ctx.translate(width / 2, height / 2);
+          ctx.scale(imageData.zoom, imageData.zoom);
+          ctx.translate(imageData.position.x / imageData.zoom, imageData.position.y / imageData.zoom);
+          
+          // Calculate image dimensions to cover the canvas
+          const scale = Math.max(width / img.width, height / img.height);
+          const scaledWidth = img.width * scale;
+          const scaledHeight = img.height * scale;
+          
+          ctx.drawImage(
+            img,
+            -scaledWidth / 2,
+            -scaledHeight / 2,
+            scaledWidth,
+            scaledHeight
+          );
+          ctx.restore();
+
+          URL.revokeObjectURL(imageUrl);
+          
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/jpeg', 0.95);
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl);
+          resolve(null);
+        };
+        
+        img.src = imageUrl;
+      });
+    } catch (error) {
+      console.error("Error creating edited image:", error);
+      return null;
+    }
+  };
+
+  const handleSubmitOrder = async (contactData: ContactFormData) => {
+    const deliveryCharge = getDeliveryCharge(contactData);
+    const subtotal = getTotalPrice();
+    const total = subtotal + deliveryCharge;
+
+    // Count pages with photos
+    const pagesWithPhotos = pages.filter(p => p.images.some(img => img !== null)).length;
+    const totalImagesInAlbum = pages.reduce((sum, page) => 
+      sum + page.images.filter(img => img !== null).length, 0
+    );
+
+    // Build complete order structure
+    const orderData = {
+      customer: {
+        name: contactData.name,
+        phone: contactData.phone,
+        location: contactData.location,
+        additionalInfo: contactData.additionalInfo || ""
+      },
+      payment: {
+        method: contactData.paymentMethod,
+        ...(contactData.paymentMethod === 'cod' && {
+          deliveryLocation: contactData.deliveryLocation
+        }),
+        deliveryCharge
+      },
+      album: {
+        shape,
+        coverImage: coverImage instanceof File ? coverImage.name : (typeof coverImage === 'string' ? coverImage : 'None'),
+        pageCount,
+        pagesWithPhotos,
+        totalImages: totalImagesInAlbum,
+        basePrice: BASE_PRICE,
+        pricePerPage: PRICE_PER_PAGE
+      },
+      pricing: {
+        basePrice: BASE_PRICE,
+        pagesPrice: pageCount * PRICE_PER_PAGE,
+        subtotal,
+        deliveryCharge,
+        total
+      },
+      pages: await Promise.all(pages.map(async (page, pageIndex) => {
+        const layout = ALBUM_LAYOUTS.find(l => l.id === page.layoutId);
+        const imagesWithPhotos = page.images.map((img, slotIndex) => {
+          if (!img) return null;
+          
+          const hasEdits = img.zoom !== 1 || img.position.x !== 0 || img.position.y !== 0;
+          
+          return {
+            slotIndex,
+            originalFileName: img.file.name,
+            fileSize: img.file.size,
+            fileType: img.file.type,
+            hasEdits,
+            ...(hasEdits && {
+              transformData: {
+                zoom: img.zoom,
+                positionX: img.position.x,
+                positionY: img.position.y
+              }
+            })
+          };
+        }).filter(img => img !== null);
+
+        return {
+          pageNumber: pageIndex + 1,
+          layoutId: page.layoutId,
+          layoutName: layout?.name || 'Unknown',
+          imageCount: page.images.filter(img => img !== null).length,
+          totalSlots: page.images.length,
+          images: imagesWithPhotos
+        };
+      })),
+      metadata: {
+        orderDate: new Date().toISOString(),
+        serviceType: "album"
+      }
+    };
+
+    // Log complete order structure
+    console.log('\n' + '═'.repeat(70));
+    console.log('          ALBUM ORDER SUBMISSION - COMPLETE DATA');
+    console.log('═'.repeat(70) + '\n');
+
+    console.log('📦 COMPLETE ORDER OBJECT:');
+    console.log(JSON.stringify(orderData, null, 2));
+
+    console.log('\n' + '═'.repeat(70));
+    console.log('              RAW & EDITED IMAGES');
+    console.log('═'.repeat(70) + '\n');
+
+    // Log cover image
+    if (coverImage instanceof File) {
+      console.log('📕 ALBUM COVER IMAGE:');
+      console.log(`   File: ${coverImage.name}`);
+      console.log(`   Size: ${(coverImage.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`   Type: ${coverImage.type}`);
+      console.log(`   Cover Image File:`, coverImage);
+      console.log('');
+    }
+
+    // Log raw images and create edited versions
+    console.log('📸 RAW & EDITED IMAGES BY PAGE:');
+    
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const page = pages[pageIndex];
+      const imagesInPage = page.images.filter(img => img !== null);
+      
+      if (imagesInPage.length === 0) continue;
+
+      const layout = ALBUM_LAYOUTS.find(l => l.id === page.layoutId);
+      console.log(`\n   📄 Page ${pageIndex + 1} (Layout: ${layout?.name || 'Unknown'})`);
+      console.log(`   ─────────────────────────────────────────`);
+
+      for (let slotIndex = 0; slotIndex < page.images.length; slotIndex++) {
+        const imageData = page.images[slotIndex];
+        if (!imageData) continue;
+
+        const hasEdits = imageData.zoom !== 1 || imageData.position.x !== 0 || imageData.position.y !== 0;
+
+        console.log(`\n      🖼️  Slot ${slotIndex + 1}:`);
+        console.log(`      Original File: ${imageData.file.name}`);
+        console.log(`      Size: ${(imageData.file.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`      Type: ${imageData.file.type}`);
+        console.log(`      Has Edits: ${hasEdits ? 'Yes' : 'No'}`);
+        
+        if (hasEdits) {
+          console.log(`      Transform Data:`);
+          console.log(`        - Zoom: ${imageData.zoom.toFixed(2)}x`);
+          console.log(`        - Position X: ${imageData.position.x}px`);
+          console.log(`        - Position Y: ${imageData.position.y}px`);
+        }
+        
+        console.log(`      Raw File Object:`, imageData.file);
+
+        // Create and log edited version if there are edits
+        if (hasEdits) {
+          const editedBlob = await createEditedImage(imageData, 800, 800);
+          if (editedBlob) {
+            console.log(`      ✨ Edited Version:`);
+            console.log(`         Size: ${(editedBlob.size / 1024 / 1024).toFixed(2)} MB`);
+            console.log(`         Type: image/jpeg`);
+            console.log(`         Edited Blob:`, editedBlob);
+          }
+        }
+      }
+    }
+
+    console.log('\n' + '═'.repeat(70));
+    console.log('              PRICING SUMMARY');
+    console.log('═'.repeat(70) + '\n');
+
+    console.log('💰 PRICING BREAKDOWN:');
+    console.log(`   Album Shape: ${shape === 'square' ? 'Square' : 'Rectangle'}`);
+    console.log(`   Base Price: ${BASE_PRICE} tk`);
+    console.log(`   Pages: ${pageCount} × ${PRICE_PER_PAGE} tk = ${pageCount * PRICE_PER_PAGE} tk`);
+    console.log(`   Subtotal: ${subtotal} tk`);
+    console.log(`   Delivery: ${deliveryCharge} tk`);
+    console.log(`   Total: ${total} tk`);
+
+    console.log('\n' + '═'.repeat(70));
+    console.log('              ALBUM STATISTICS');
+    console.log('═'.repeat(70) + '\n');
+
+    console.log('📊 STATISTICS:');
+    console.log(`   Total Pages: ${pageCount}`);
+    console.log(`   Pages with Photos: ${pagesWithPhotos}`);
+    console.log(`   Total Images: ${totalImagesInAlbum}`);
+    console.log(`   Has Cover Image: ${coverImage ? 'Yes' : 'No'}`);
+
+    console.log('\n' + '═'.repeat(70) + '\n');
+
+    toast.success("Order submitted! Check console for complete data.");
   };
 
   if (showContactForm) {

@@ -32,6 +32,12 @@ const COLLAGE_SIZES = {
   "rectangle-large": { name: "20\" × 16\" Rectangle", price: 1500, width: 600, height: 480 },
 };
 
+interface ImageTransformData {
+  id: string;
+  scale: number;
+  position: { x: number; y: number };
+}
+
 export const CollageFlow = () => {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImg, setSelectedImg] = useState<File[]>([]);
@@ -40,6 +46,7 @@ export const CollageFlow = () => {
   const [collageSize, setCollageSize] = useState("square-small");
   const [showContactForm, setShowContactForm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [imageTransforms, setImageTransforms] = useState<Map<string, ImageTransformData>>(new Map());
   const collageRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
@@ -381,6 +388,14 @@ export const CollageFlow = () => {
     toast.success("Photo removed from collage");
   };
 
+  const handleTransformChange = (id: string, scale: number, position: { x: number; y: number }) => {
+    setImageTransforms(prev => {
+      const newMap = new Map(prev);
+      newMap.set(id, { id, scale, position });
+      return newMap;
+    });
+  };
+
   const handleShapeChange = (newShape: Shape) => {
     setSelectedShape(newShape);
     // Update collage size to match the new shape
@@ -448,13 +463,156 @@ export const CollageFlow = () => {
     return COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].price;
   };
 
-  const handleSubmitOrder = (contactData: ContactFormData) => {
-    console.log('Collage order submitted:', { 
-      photos: selectedImg, 
-      size: collageSize,
-      contactData, 
-      totalPrice: getTotalPrice() 
+  const getDeliveryCharge = (contactData: ContactFormData) => {
+    if (contactData.paymentMethod === 'cod' && contactData.deliveryLocation === 'inside-dhaka') {
+      return 50;
+    }
+    return 0;
+  };
+
+  // Function to capture edited collage as image
+  const captureEditedCollage = async (): Promise<Blob | null> => {
+    try {
+      if (collageRef.current) {
+        const canvas = await html2canvas(collageRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+        });
+
+        return new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/jpeg', 0.95);
+        });
+      }
+      return null;
+    } catch (error) {
+      console.error("Error capturing edited collage:", error);
+      return null;
+    }
+  };
+
+  const handleSubmitOrder = async (contactData: ContactFormData) => {
+    const deliveryCharge = getDeliveryCharge(contactData);
+    const subtotal = getTotalPrice();
+    const total = subtotal + deliveryCharge;
+
+    // Capture edited collage
+    const editedCollageBlob = await captureEditedCollage();
+
+    // Build complete order structure
+    const orderData = {
+      customer: {
+        name: contactData.name,
+        phone: contactData.phone,
+        location: contactData.location,
+        additionalInfo: contactData.additionalInfo || ""
+      },
+      payment: {
+        method: contactData.paymentMethod,
+        ...(contactData.paymentMethod === 'cod' && {
+          deliveryLocation: contactData.deliveryLocation
+        }),
+        deliveryCharge
+      },
+      collage: {
+        size: collageSize,
+        sizeDetails: COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES],
+        shape: selectedShape,
+        layout: getLayoutDescription(images.length),
+        totalPhotos: images.length
+      },
+      pricing: {
+        subtotal,
+        deliveryCharge,
+        total
+      },
+      photos: selectedImg.map((file, index) => {
+        const imageId = images[index];
+        const transformData = imageTransforms.get(imageId);
+        const hasEdits = transformData && (transformData.scale !== 1 || transformData.position.x !== 0 || transformData.position.y !== 0);
+
+        return {
+          index: index + 1,
+          originalFileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          hasEdits,
+          ...(hasEdits && {
+            transformData: {
+              scale: transformData.scale,
+              positionX: transformData.position.x,
+              positionY: transformData.position.y
+            }
+          })
+        };
+      }),
+      metadata: {
+        orderDate: new Date().toISOString(),
+        serviceType: "collage"
+      }
+    };
+
+    // Log complete order structure
+    console.log('\n' + '═'.repeat(70));
+    console.log('          COLLAGE ORDER SUBMISSION - COMPLETE DATA');
+    console.log('═'.repeat(70) + '\n');
+
+    console.log('📦 COMPLETE ORDER OBJECT:');
+    console.log(JSON.stringify(orderData, null, 2));
+
+    console.log('\n' + '═'.repeat(70));
+    console.log('              RAW & EDITED IMAGES');
+    console.log('═'.repeat(70) + '\n');
+
+    // Log raw images
+    console.log('📸 RAW IMAGES (Original Files):');
+    selectedImg.forEach((file, index) => {
+      const imageId = images[index];
+      const transformData = imageTransforms.get(imageId);
+      const hasEdits = transformData && (transformData.scale !== 1 || transformData.position.x !== 0 || transformData.position.y !== 0);
+      
+      console.log(`\n   Photo ${index + 1}:`);
+      console.log(`   Original File: ${file.name}`);
+      console.log(`   Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`   Type: ${file.type}`);
+      console.log(`   Has Edits: ${hasEdits ? 'Yes' : 'No'}`);
+      
+      if (hasEdits && transformData) {
+        console.log(`   Transform Data:`);
+        console.log(`     - Scale: ${transformData.scale.toFixed(2)}x`);
+        console.log(`     - Position X: ${transformData.position.x}px`);
+        console.log(`     - Position Y: ${transformData.position.y}px`);
+      }
+      
+      // Log the raw file object
+      console.log(`   Raw File Object:`, file);
     });
+
+    // Log edited collage
+    if (editedCollageBlob) {
+      console.log('\n🎨 EDITED COLLAGE (Final Rendered Version):');
+      console.log(`   Size: ${(editedCollageBlob.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`   Type: image/jpeg`);
+      console.log(`   Resolution: High quality (2x scale)`);
+      console.log(`   Edited Collage Blob:`, editedCollageBlob);
+    }
+
+    console.log('\n' + '═'.repeat(70));
+    console.log('              PRICING SUMMARY');
+    console.log('═'.repeat(70) + '\n');
+
+    console.log('💰 PRICING BREAKDOWN:');
+    console.log(`   Collage: ${COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].name}`);
+    console.log(`   Subtotal: ${subtotal} tk`);
+    console.log(`   Delivery: ${deliveryCharge} tk`);
+    console.log(`   Total: ${total} tk`);
+
+    console.log('\n' + '═'.repeat(70) + '\n');
+
+    toast.success("Order submitted! Check console for complete data.");
   };
 
   const layout = getCollageLayout(images.length, selectedShape);
@@ -609,6 +767,7 @@ export const CollageFlow = () => {
                         image={image}
                         index={index}
                         onRemove={handleRemoveImage}
+                        onTransformChange={handleTransformChange}
                         totalImages={images.length}
                         layoutClass={layout.itemClasses[index] || "col-span-1 aspect-square"}
                       />

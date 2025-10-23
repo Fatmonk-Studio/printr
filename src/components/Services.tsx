@@ -1,7 +1,7 @@
-import servicePrints from "@/assets/services/print.png";
-import serviceFrames from "@/assets/services/frame.png";
-import serviceCollages from "@/assets/services/collage.png";
-import serviceAlbums from "@/assets/services/album.png";
+import servicePrints from "@/assets/services/print.jpg";
+import serviceFrames from "@/assets/services/frame.jpg";
+import serviceCollages from "@/assets/services/collage.jpg";
+import serviceAlbums from "@/assets/services/album.jpg";
 import { Link } from "react-router-dom";
 
 

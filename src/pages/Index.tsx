@@ -97,7 +97,7 @@ const Index = () => {
       <Features />
       <Services />
       <HowItWorks />
-  <CallToAction />
+      <CallToAction onProductSelect={handleProductClick} />
       <Footer />
 
       {/* <section className="relative overflow-hidden">

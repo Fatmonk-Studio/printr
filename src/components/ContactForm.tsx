@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
 interface ContactFormProps {
@@ -16,6 +17,8 @@ export interface ContactFormData {
   phone: string;
   location: string;
   additionalInfo: string;
+  paymentMethod: "online" | "cod";
+  deliveryLocation?: "inside-dhaka" | "outside-dhaka";
 }
 
 export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
@@ -24,6 +27,8 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
     phone: "",
     location: "",
     additionalInfo: "",
+    paymentMethod: "online",
+    deliveryLocation: undefined,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,6 +36,11 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
     
     if (!formData.name || !formData.phone || !formData.location) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.paymentMethod === "cod" && !formData.deliveryLocation) {
+      toast.error("Please select delivery location for Cash on Delivery");
       return;
     }
     
@@ -42,6 +52,29 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handlePaymentMethodChange = (value: "online" | "cod") => {
+    setFormData(prev => ({ 
+      ...prev, 
+      paymentMethod: value,
+      deliveryLocation: value === "online" ? undefined : prev.deliveryLocation
+    }));
+  };
+
+  const handleDeliveryLocationChange = (value: "inside-dhaka" | "outside-dhaka") => {
+    setFormData(prev => ({ ...prev, deliveryLocation: value }));
+  };
+
+  const getDeliveryCharge = () => {
+    if (formData.paymentMethod === "cod" && formData.deliveryLocation === "inside-dhaka") {
+      return 50;
+    }
+    return 0;
+  };
+
+  const getFinalPrice = () => {
+    return totalPrice + getDeliveryCharge();
   };
 
   return (
@@ -95,11 +128,77 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
             className="min-h-[100px]"
           />
         </div>
+
+        {/* Payment Method Section */}
+        <div className="space-y-4 pt-4 border-t">
+          <Label>Payment Method *</Label>
+          <RadioGroup
+            value={formData.paymentMethod}
+            onValueChange={handlePaymentMethodChange}
+            className="space-y-3"
+          >
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value="online" id="online" />
+              <Label htmlFor="online" className="cursor-pointer flex-1 font-normal">
+                Online Payment
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+              <RadioGroupItem value="cod" id="cod" />
+              <Label htmlFor="cod" className="cursor-pointer flex-1 font-normal">
+                Cash on Delivery (COD)
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        {/* Delivery Location - Only show if COD is selected */}
+        {formData.paymentMethod === "cod" && (
+          <div className="space-y-4 p-4 bg-accent/20 rounded-lg border border-accent">
+            <Label>Delivery Location *</Label>
+            <RadioGroup
+              value={formData.deliveryLocation}
+              onValueChange={handleDeliveryLocationChange}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
+                <div className="flex items-center space-x-3 flex-1">
+                  <RadioGroupItem value="inside-dhaka" id="inside-dhaka" />
+                  <Label htmlFor="inside-dhaka" className="cursor-pointer font-normal">
+                    Inside Dhaka
+                  </Label>
+                </div>
+                <span className="text-sm font-medium text-primary">+50 tk</span>
+              </div>
+              <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
+                <div className="flex items-center space-x-3 flex-1">
+                  <RadioGroupItem value="outside-dhaka" id="outside-dhaka" />
+                  <Label htmlFor="outside-dhaka" className="cursor-pointer font-normal">
+                    Outside Dhaka
+                  </Label>
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">Free</span>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
         
         <div className="border-t pt-4 mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-lg font-medium">Total Price:</span>
-            <span className="text-2xl font-bold text-primary">{totalPrice.toFixed(2)} tk</span>
+          <div className="space-y-2 mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Subtotal:</span>
+              <span className="text-sm font-medium">{totalPrice.toFixed(2)} tk</span>
+            </div>
+            {getDeliveryCharge() > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Delivery Charge:</span>
+                <span className="text-sm font-medium text-primary">+{getDeliveryCharge().toFixed(2)} tk</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="text-lg font-medium">Total Price:</span>
+              <span className="text-2xl font-bold text-primary">{getFinalPrice().toFixed(2)} tk</span>
+            </div>
           </div>
           
           <Button type="submit" variant="hero" size="lg" className="w-full">
