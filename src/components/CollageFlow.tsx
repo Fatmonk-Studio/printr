@@ -90,7 +90,7 @@ export const CollageFlow = () => {
         },
         2: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-4 gap-2",
+          gridClass: "grid grid-cols-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-4 aspect-[1/2]",  // item1: Left side (spans 2 cols, 4 rows)
             "col-span-2 row-span-4 aspect-[1/2]"   // item2: Right side (spans 2 cols, 4 rows)
@@ -99,7 +99,7 @@ export const CollageFlow = () => {
         },
         3: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-2 grid-rows-2 gap-2",
+          gridClass: "grid grid-cols-2 grid-rows-2 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-1 aspect-[2/1]", // Wide top image
             "col-span-1 row-span-1 aspect-square", // Bottom left
@@ -109,7 +109,7 @@ export const CollageFlow = () => {
         },
         4: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-2 grid-rows-2 gap-2",
+          gridClass: "grid grid-cols-2 grid-rows-2 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-square",
             "col-span-1 row-span-1 aspect-square", 
@@ -120,7 +120,7 @@ export const CollageFlow = () => {
         },
         5: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-square", // Large center piece
             "col-span-1 row-span-1 aspect-square",   // Top right
@@ -132,7 +132,7 @@ export const CollageFlow = () => {
         },
         6: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-square", // Large main image
             "col-span-1 row-span-1 aspect-square", // Top right
@@ -145,7 +145,7 @@ export const CollageFlow = () => {
         },
         7: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-square", // Top left
             "col-span-1 row-span-1 aspect-square", // Top center  
@@ -159,7 +159,7 @@ export const CollageFlow = () => {
         },
         8: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-4 gap-2",
+          gridClass: "grid grid-cols-4 grid-rows-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-square", // Center piece
             "col-span-1 row-span-1 aspect-square", // Top right 1
@@ -174,7 +174,7 @@ export const CollageFlow = () => {
         },
         9: {
           containerClass: "w-full max-w-2xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-square", // Top left
             "col-span-1 row-span-1 aspect-square", // Top center
@@ -190,7 +190,7 @@ export const CollageFlow = () => {
         },
         10: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-4 gap-2",
+          gridClass: "grid grid-cols-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-square",     // item1: Large left (spans 2 cols, 2 rows)
             "col-span-2 row-span-1 aspect-[2/1]",      // item2: Top right wide (spans 2 cols)
@@ -218,7 +218,7 @@ export const CollageFlow = () => {
         },
         2: {
           containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-4 gap-2",
+          gridClass: "grid grid-cols-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-4 aspect-[2/3]",  // item1: Left side (wider than square's 1/2)
             "col-span-2 row-span-4 aspect-[2/3]"   // item2: Right side (wider than square's 1/2)
@@ -227,7 +227,7 @@ export const CollageFlow = () => {
         },
         3: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-2 grid-rows-2 gap-2",
+          gridClass: "grid grid-cols-2 grid-rows-2 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-1 aspect-[3/1]", // Wide top image (wider than square's 2/1)
             "col-span-1 row-span-1 aspect-[4/3]", // Bottom left (wider than square)
@@ -237,7 +237,7 @@ export const CollageFlow = () => {
         },
         4: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-2 grid-rows-2 gap-2",
+          gridClass: "grid grid-cols-2 grid-rows-2 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-[4/3]",
             "col-span-1 row-span-1 aspect-[4/3]", 
@@ -248,7 +248,7 @@ export const CollageFlow = () => {
         },
         5: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-[4/3]", // Large center piece (wider than square)
             "col-span-1 row-span-1 aspect-[4/3]",   // Top right (wider than square)
@@ -260,7 +260,7 @@ export const CollageFlow = () => {
         },
         6: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-[4/3]", // Large main image (wider than square)
             "col-span-1 row-span-1 aspect-[4/3]", // Top right (wider than square)
@@ -273,7 +273,7 @@ export const CollageFlow = () => {
         },
         7: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-[4/3]", // Top left (wider than square)
             "col-span-1 row-span-1 aspect-[4/3]", // Top center (wider than square)
@@ -287,7 +287,7 @@ export const CollageFlow = () => {
         },
         8: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-4 grid-rows-4 gap-2",
+          gridClass: "grid grid-cols-4 grid-rows-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-[4/3]", // Center piece (wider than square)
             "col-span-1 row-span-1 aspect-[4/3]", // Top right 1 (wider than square)
@@ -302,7 +302,7 @@ export const CollageFlow = () => {
         },
         9: {
           containerClass: "w-full max-w-4xl mx-auto",
-          gridClass: "grid grid-cols-3 grid-rows-3 gap-2",
+          gridClass: "grid grid-cols-3 grid-rows-3 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-1 row-span-1 aspect-[4/3]", // Top left (wider than square)
             "col-span-1 row-span-1 aspect-[4/3]", // Top center (wider than square)
@@ -318,7 +318,7 @@ export const CollageFlow = () => {
         },
         10: {
           containerClass: "w-full max-w-5xl mx-auto",
-          gridClass: "grid grid-cols-4 gap-2",
+          gridClass: "grid grid-cols-4 gap-1 sm:gap-2",
           itemClasses: [
             "col-span-2 row-span-2 aspect-[4/3]",     // item1: Large left (wider than square)
             "col-span-2 row-span-1 aspect-[3/1]",      // item2: Top right wide (wider than square's 2/1)
@@ -746,14 +746,14 @@ export const CollageFlow = () => {
             
             <div
               ref={collageRef}
-              className={`${layout.containerClass} bg-white p-4 rounded-lg shadow-inner relative overflow-hidden`}
+              className={`${layout.containerClass} bg-white p-2 sm:p-4 rounded-lg shadow-inner relative overflow-hidden`}
               style={{ 
                 aspectRatio: layout.aspectRatio,
                 minHeight: '400px',
                 position: 'relative'
               }}
             >
-              <div className={`${layout.gridClass} h-full w-full`}>
+              <div className={`${layout.gridClass} h-fit w-full`}>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}

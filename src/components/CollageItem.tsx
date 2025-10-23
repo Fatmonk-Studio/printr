@@ -79,6 +79,41 @@ const CollageItem: React.FC<CollageItemProps> = ({
     document.addEventListener("mouseup", handleMouseUp);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isActive || isSortableDragging) return;
+    
+    e.stopPropagation();
+    const touch = e.touches[0];
+    setIsDragging(true);
+    dragStartPos.current = { x: touch.clientX, y: touch.clientY };
+    initialPos.current = { ...position };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - dragStartPos.current.x;
+        const deltaY = touch.clientY - dragStartPos.current.y;
+        
+        const newPosition = {
+          x: initialPos.current.x + deltaX,
+          y: initialPos.current.y + deltaY,
+        };
+        
+        setPosition(newPosition);
+        onTransformChange?.(id, scale, newPosition);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    document.addEventListener("touchmove", handleTouchMove, { passive: false });
+    document.addEventListener("touchend", handleTouchEnd);
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     if (!isActive) return;
     e.preventDefault();
@@ -158,36 +193,41 @@ const CollageItem: React.FC<CollageItemProps> = ({
 
       {/* Image Controls - Only visible when active */}
       {isActive && (
-        <div className="absolute bottom-2 right-2 z-20 flex gap-1 bg-black/80 rounded p-1">
+        <div className="absolute bottom-2 right-2 z-20 flex gap-0.5 sm:gap-1 bg-black/80 rounded p-0.5 sm:p-1">
           <Button
             variant="outline"
             size="sm"
-            className="w-7 h-7 p-0 bg-white/90 hover:bg-white"
+            className="w-5 h-5 sm:w-7 sm:h-7 p-0 bg-white/90 hover:bg-white"
             onClick={handleZoomIn}
           >
-            <ZoomIn className="w-3 h-3" />
+            <ZoomIn className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="w-7 h-7 p-0 bg-white/90 hover:bg-white"
+            className="w-5 h-5 sm:w-7 sm:h-7 p-0 bg-white/90 hover:bg-white"
             onClick={handleZoomOut}
           >
-            <ZoomOut className="w-3 h-3" />
+            <ZoomOut className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="w-7 h-7 p-0 bg-white/90 hover:bg-white"
+            className="w-5 h-5 sm:w-7 sm:h-7 p-0 bg-white/90 hover:bg-white"
             onClick={handleReset}
           >
-            <RotateCcw className="w-3 h-3" />
+            <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           </Button>
         </div>
       )}
 
       {/* Image */}
-      <div className="w-full h-full relative overflow-hidden">
+      <div 
+        className="w-full h-full relative overflow-hidden touch-none"
+        onMouseDown={isActive ? handleMouseDown : undefined}
+        onTouchStart={isActive ? handleTouchStart : undefined}
+        onWheel={isActive ? handleWheel : undefined}
+      >
         <img
           src={image}
           alt={`Collage item ${index + 1}`}
@@ -198,8 +238,6 @@ const CollageItem: React.FC<CollageItemProps> = ({
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             transformOrigin: 'center',
           }}
-          onMouseDown={handleMouseDown}
-          onWheel={handleWheel}
           draggable={false}
         />
         
@@ -211,16 +249,16 @@ const CollageItem: React.FC<CollageItemProps> = ({
         )}
       </div>
 
-      {/* Instructions - Only visible when active */}
+      {/* Instructions - Only visible when active on desktop */}
       {isActive && (
-        <div className="absolute bottom-2 left-2 z-20 bg-black/80 text-white text-xs p-2 rounded max-w-32">
+        <div className="hidden sm:block absolute bottom-2 left-2 z-20 bg-black/80 text-white text-xs p-2 rounded max-w-32">
           <p className="leading-tight">Drag to pan<br/>Scroll to zoom</p>
         </div>
       )}
 
-      {/* Edit Mode Indicator */}
+      {/* Edit Mode Indicator - Only visible on desktop */}
       {isActive && (
-        <div className="absolute top-2 left-2 z-20 bg-primary text-white text-xs px-2 py-1 rounded">
+        <div className="hidden sm:block absolute top-2 left-2 z-20 bg-primary text-white text-xs px-2 py-1 rounded">
           Edit Mode
         </div>
       )}
