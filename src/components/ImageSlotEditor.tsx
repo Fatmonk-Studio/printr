@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, X } from "lucide-react";
 
@@ -20,75 +20,145 @@ export const ImageSlotEditor = ({
   onPositionChange,
 }: ImageSlotEditorProps) => {
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const dragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  useEffect(() => {
+    if (image) {
+      const url = URL.createObjectURL(image);
+      setImageUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [image]);
+
+  const handleDragStart = (clientX: number, clientY: number) => {
     if (!image) return;
     setIsDragging(true);
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: clientX,
+      y: clientY,
+      startX: position.x,
+      startY: position.y,
     };
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleDragMove = (clientX: number, clientY: number) => {
     if (!isDragging || !image) return;
+    
+    const deltaX = clientX - dragStartRef.current.x;
+    const deltaY = clientY - dragStartRef.current.y;
+    
     onPositionChange({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
+      x: dragStartRef.current.startX + deltaX,
+      y: dragStartRef.current.startY + deltaY,
     });
   };
 
-  const handleMouseUp = () => {
+  const handleDragEnd = () => {
     setIsDragging(false);
+  };
+
+  // Mouse events
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragStart(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragMove(e.clientX, e.clientY);
+  };
+
+  // Touch events
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleDragStart(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleDragMove(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    handleDragEnd();
+  };
+
+  // Mouse wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Math.max(0.5, Math.min(3, zoom + delta));
+    onZoomChange(newZoom);
   };
 
   if (!image) return null;
 
   return (
-    <div className="absolute inset-0 group">
+    <div className="absolute inset-0 group" ref={containerRef}>
       <div
-        className="w-full h-full overflow-hidden cursor-move"
+        className="w-full h-full overflow-hidden cursor-move touch-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onWheel={handleWheel}
       >
         <img
-          src={URL.createObjectURL(image)}
+          src={imageUrl}
           alt="Album photo"
-          className="w-full h-full object-cover pointer-events-none"
+          className="w-full h-full object-cover pointer-events-none select-none"
+          draggable={false}
           style={{
-            transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+            transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
             transformOrigin: 'center',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         />
       </div>
       
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 pointer-events-auto">
         <Button
           variant="secondary"
           size="sm"
-          className="w-7 h-7 p-0"
-          onClick={() => onZoomChange(Math.min(zoom + 0.1, 3))}
+          className="w-6 h-6 sm:w-8 sm:h-8 p-0 touch-manipulation"
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomChange(Math.min(zoom + 0.2, 3));
+          }}
         >
-          <ZoomIn className="w-3 h-3" />
+          <ZoomIn className="w-2.5 h-2.5 sm:w-4 sm:h-4" />
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          className="w-7 h-7 p-0"
-          onClick={() => onZoomChange(Math.max(zoom - 0.1, 0.5))}
+          className="w-6 h-6 sm:w-8 sm:h-8 p-0 touch-manipulation"
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomChange(Math.max(zoom - 0.2, 0.5));
+          }}
         >
-          <ZoomOut className="w-3 h-3" />
+          <ZoomOut className="w-2.5 h-2.5 sm:w-4 sm:h-4" />
         </Button>
         <Button
           variant="destructive"
           size="sm"
-          className="w-7 h-7 p-0"
-          onClick={onRemove}
+          className="w-6 h-6 sm:w-8 sm:h-8 p-0 touch-manipulation"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
         >
-          <X className="w-3 h-3" />
+          <X className="w-2.5 h-2.5 sm:w-4 sm:h-4" />
         </Button>
       </div>
     </div>

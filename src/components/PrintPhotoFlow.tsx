@@ -1,52 +1,91 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
 import { ImagePreviewCanvas, CropData } from "./ImagePreviewCanvas";
 import { toast } from "sonner";
 
-type Format = "HD matte sticker paper" | "3mm Board HD matte pasted frame" | "5mm Board HD matte pasted frame" | "Premium Framed Print with Glass" | "Premium Framed Print without Glass";
+interface PrintSize {
+  id: number;
+  name: string;
+  print_type_id: number;
+  status: number;
+  price: string;
+  dimention: string;
+  created_at: string;
+  updated_at: string;
+}
 
-type Size = "8.5x4" | "12x18" | "16x24" | "24x36";
-
-const sizes: Record<Size, { name: string; price: number }> = {
-  "8.5x4": { name: "8.5\" x 4\" - Small", price: 250 },
-  "12x18": { name: "12\" x 18\" - Medium", price: 350 },
-  "16x24": { name: "16\" x 24\" - Large", price: 500 },
-  "24x36": { name: "24\" x 36\" - Extra Large", price: 1000 },
-};
-
-const formats: Format[] = [
-  "HD matte sticker paper",
-  "3mm Board HD matte pasted frame",
-  "5mm Board HD matte pasted frame",
-  "Premium Framed Print with Glass",
-  "Premium Framed Print without Glass",
-];
+interface PrintType {
+  id: number;
+  name: string;
+  slug: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
+  size: PrintSize[];
+}
 
 interface PhotoItem {
   id: string;
   file: File;
-  format: Format;
-  size: Size;
+  printTypeId: number;
+  sizeId: number;
   preview: string;
   cropData?: CropData;
+  customSize?: {
+    width: string;
+    height: string;
+  };
+  useCustomSize?: boolean;
 }
 
-// Size dimensions for preview (scaled down for display)
-const sizePreviewDimensions: Record<Size, { width: number; height: number }> = {
-  "8.5x4": { width: 212, height: 100 },   // 8.5:4 ratio
-  "12x18": { width: 200, height: 300 },   // 12:18 ratio  
-  "16x24": { width: 200, height: 300 },   // 16:24 ratio
-  "24x36": { width: 200, height: 300 },   // 24:36 ratio
+// Helper function to calculate preview dimensions based on actual size
+const getPreviewDimensions = (dimention: string): { width: number; height: number } => {
+  const parts = dimention.split('x').map(p => parseFloat(p.trim()));
+  const [width, height] = parts;
+  
+  // Scale to fit preview (max 300px for larger dimension)
+  const scale = 300 / Math.max(width, height);
+  return {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+  };
 };
 
 export const PrintPhotoFlow = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
+  const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
+
+  // Fetch print types and sizes from API
+  useEffect(() => {
+    const fetchPrintTypes = async () => {
+      try {
+        const response = await fetch('https://admin.printr.store/api/print-type/list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setPrintTypes(result.data);
+        } else {
+          toast.error('Failed to load print types');
+        }
+      } catch (error) {
+        console.error('Error fetching print types:', error);
+        toast.error('Failed to load print types');
+      } finally {
+        setLoadingPrintTypes(false);
+      }
+    };
+
+    fetchPrintTypes();
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -55,11 +94,14 @@ export const PrintPhotoFlow = () => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
+          const defaultPrintType = printTypes.length > 0 ? printTypes[0] : null;
+          const defaultSize = defaultPrintType?.size?.[0];
+          
           const newPhoto: PhotoItem = {
             id: Math.random().toString(36).substr(2, 9),
             file,
-            format: "HD matte sticker paper",
-            size: "12x18",
+            printTypeId: defaultPrintType?.id || 1,
+            sizeId: defaultSize?.id || 1,
             preview: e.target?.result as string,
             cropData: { x: 0, y: 0, scale: 1 },
           };
@@ -86,8 +128,47 @@ export const PrintPhotoFlow = () => {
     setPhotos(prev => prev.filter(photo => photo.id !== id));
   };
 
+  const getPrintTypeById = (printTypeId: number): PrintType | undefined => {
+    return printTypes.find(pt => pt.id === printTypeId);
+  };
+
+  const getSizeById = (sizeId: number): PrintSize | undefined => {
+    for (const printType of printTypes) {
+      const size = printType.size.find(s => s.id === sizeId);
+      if (size) return size;
+    }
+    return undefined;
+  };
+
+  const getAvailableSizes = (printTypeId: number): PrintSize[] => {
+    const printType = getPrintTypeById(printTypeId);
+    return printType?.size || [];
+  };
+
+  const getExtraLargePrice = (): number => {
+    // Find Extra Large size across all print types
+    for (const printType of printTypes) {
+      const extraLargeSize = printType.size.find(s => s.name === "Extra Large");
+      if (extraLargeSize) {
+        return parseFloat(extraLargeSize.price);
+      }
+    }
+    return 0;
+  };
+
+  const getCustomSizePrice = (): number => {
+    const extraLargePrice = getExtraLargePrice();
+    return extraLargePrice + 200;
+  };
+
   const getTotalPrice = () => {
-    return photos.reduce((total, photo) => total + sizes[photo.size].price, 0);
+    return photos.reduce((total, photo) => {
+      if (photo.useCustomSize) {
+        return total + getCustomSizePrice();
+      }
+      const size = getSizeById(photo.sizeId);
+      return total + (size ? parseFloat(size.price) : 0);
+    }, 0);
   };
 
   const getDeliveryCharge = (contactData: ContactFormData) => {
@@ -95,6 +176,12 @@ export const PrintPhotoFlow = () => {
       return 50;
     }
     return 0;
+  };
+
+  const getOrientation = (dimention: string): "landscape" | "portrait" => {
+    const parts = dimention.split('x').map(p => parseFloat(p.trim()));
+    const [width, height] = parts;
+    return width > height ? "landscape" : "portrait";
   };
 
   // Function to create print-ready cropped image from the original file
@@ -112,17 +199,30 @@ export const PrintPhotoFlow = () => {
           return;
         }
 
-        // Calculate actual print dimensions at 300 DPI
-        const printDimensions = {
-          "8.5x4": { width: 2550, height: 1200 },   // 8.5" × 300 DPI, 4" × 300 DPI
-          "12x18": { width: 3600, height: 5400 },   // 12" × 300 DPI, 18" × 300 DPI
-          "16x24": { width: 4800, height: 7200 },   // 16" × 300 DPI, 24" × 300 DPI
-          "24x36": { width: 7200, height: 10800 },  // 24" × 300 DPI, 36" × 300 DPI
-        };
+        let widthInches: number, heightInches: number;
 
-        const targetSize = printDimensions[photo.size];
-        canvas.width = targetSize.width;
-        canvas.height = targetSize.height;
+        if (photo.useCustomSize && photo.customSize) {
+          // Use custom size
+          widthInches = parseFloat(photo.customSize.width);
+          heightInches = parseFloat(photo.customSize.height);
+        } else {
+          // Use standard size from API
+          const size = getSizeById(photo.sizeId);
+          if (!size) {
+            reject(new Error('Invalid size'));
+            return;
+          }
+          // Parse dimensions from dimention string (e.g., "12\" x 18\"")
+          const parts = size.dimention.split('x').map(p => parseFloat(p.trim()));
+          [widthInches, heightInches] = parts;
+        }
+        
+        // Calculate actual print dimensions at 300 DPI
+        const targetWidth = widthInches * 300;
+        const targetHeight = heightInches * 300;
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
 
         const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };
         
@@ -130,9 +230,12 @@ export const PrintPhotoFlow = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Calculate scaling factor from preview to full resolution
-        const previewDimensions = sizePreviewDimensions[photo.size];
-        const scaleX = targetSize.width / previewDimensions.width;
-        const scaleY = targetSize.height / previewDimensions.height;
+        const dimensionString = photo.useCustomSize && photo.customSize 
+          ? `${photo.customSize.width}" x ${photo.customSize.height}"`
+          : getSizeById(photo.sizeId)?.dimention || "12\" x 18\"";
+        const previewDimensions = getPreviewDimensions(dimensionString);
+        const scaleX = targetWidth / previewDimensions.width;
+        const scaleY = targetHeight / previewDimensions.height;
         
         // Apply transformations at full resolution
         ctx.save();
@@ -175,35 +278,6 @@ export const PrintPhotoFlow = () => {
     });
   };
 
-  // Map sizes to size_id
-  const getSizeId = (size: Size): number => {
-    const sizeMap: Record<Size, number> = {
-      "8.5x4": 1,
-      "12x18": 2,
-      "16x24": 3,
-      "24x36": 4,
-    };
-    return sizeMap[size];
-  };
-
-  // Map formats to print_type_id
-  const getPrintTypeId = (format: Format): number => {
-    const formatMap: Record<Format, number> = {
-      "HD matte sticker paper": 1,
-      "3mm Board HD matte pasted frame": 2,
-      "5mm Board HD matte pasted frame": 3,
-      "Premium Framed Print with Glass": 4,
-      "Premium Framed Print without Glass": 5,
-    };
-    return formatMap[format];
-  };
-
-  // Determine orientation based on size ratio
-  const getOrientation = (size: Size): "landscape" | "portrait" => {
-    const [width, height] = size.split('x').map(Number);
-    return width > height ? "landscape" : "portrait";
-  };
-
   const handleSubmitOrder = async (contactData: ContactFormData) => {
     try {
       toast.loading("Processing images for print...");
@@ -236,11 +310,23 @@ export const PrintPhotoFlow = () => {
       
       // Add documents as separate form fields (not as JSON string)
       processedPhotos.forEach(({ photo, printReadyBlob }, index) => {
-        formData.append(`documents[${index}][size_id]`, getSizeId(photo.size).toString());
+        let orientation = 'landscape';
+        
+        if (photo.useCustomSize && photo.customSize) {
+          const customDimension = `${photo.customSize.width}" x ${photo.customSize.height}"`;
+          orientation = getOrientation(customDimension);
+          formData.append(`documents[${index}][size_id]`, ''); // Empty for custom size
+          formData.append(`documents[${index}][custom_size]`, `${photo.customSize.width}x${photo.customSize.height}`);
+        } else {
+          const size = getSizeById(photo.sizeId);
+          orientation = size ? getOrientation(size.dimention) : 'landscape';
+          formData.append(`documents[${index}][size_id]`, photo.sizeId.toString());
+        }
+        
         formData.append(`documents[${index}][frame_id]`, '');
-        formData.append(`documents[${index}][orientation]`, getOrientation(photo.size));
+        formData.append(`documents[${index}][orientation]`, orientation);
         formData.append(`documents[${index}][bleed_type]`, 'none');
-        formData.append(`documents[${index}][print_type_id]`, getPrintTypeId(photo.format).toString());
+        formData.append(`documents[${index}][print_type_id]`, photo.printTypeId.toString());
         
         const fileName = `photo_${index + 1}_${photo.file.name}`;
         formData.append(`documents[${index}][file]`, printReadyBlob, fileName);
@@ -294,12 +380,29 @@ export const PrintPhotoFlow = () => {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Your Photos ({photos.length})</h3>
           <div className="space-y-2">
-            {photos.map((photo) => (
-              <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                <span className="text-sm">{photo.file.name}</span>
-                <span className="text-sm font-medium">{sizes[photo.size].name} - {sizes[photo.size].price} tk</span>
-              </div>
-            ))}
+            {photos.map((photo) => {
+              if (photo.useCustomSize && photo.customSize) {
+                const customPrice = getCustomSizePrice();
+                return (
+                  <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="text-sm">{photo.file.name}</span>
+                    <span className="text-sm font-medium">
+                      Custom Size ({photo.customSize.width}" x {photo.customSize.height}") - {customPrice.toFixed(0)} tk
+                    </span>
+                  </div>
+                );
+              }
+              const size = getSizeById(photo.sizeId);
+              const printType = getPrintTypeById(photo.printTypeId);
+              return (
+                <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  <span className="text-sm">{photo.file.name}</span>
+                  <span className="text-sm font-medium">
+                    {size?.name} ({size?.dimention}) - {size ? parseFloat(size.price).toFixed(0) : 0} tk
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </Card>
         
@@ -354,12 +457,24 @@ export const PrintPhotoFlow = () => {
                     </Button>
                   </div>
                   
-                  <ImagePreviewCanvas
-                    imageUrl={photo.preview}
-                    width={sizePreviewDimensions[photo.size].width}
-                    height={sizePreviewDimensions[photo.size].height}
-                    onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
-                  />
+                  {(() => {
+                    let dimensions = { width: 400, height: 600 };
+                    if (photo.useCustomSize && photo.customSize) {
+                      const customDimension = `${photo.customSize.width}" x ${photo.customSize.height}"`;
+                      dimensions = getPreviewDimensions(customDimension);
+                    } else {
+                      const size = getSizeById(photo.sizeId);
+                      dimensions = size ? getPreviewDimensions(size.dimention) : { width: 400, height: 600 };
+                    }
+                    return (
+                      <ImagePreviewCanvas
+                        imageUrl={photo.preview}
+                        width={dimensions.width}
+                        height={dimensions.height}
+                        onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
+                      />
+                    );
+                  })()}
                   
                   <p className="text-sm text-muted-foreground truncate">
                     📁 {photo.file.name}
@@ -371,18 +486,26 @@ export const PrintPhotoFlow = () => {
                   <h3 className="font-semibold">Print Options</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Format</Label>
+                      <Label>Print Type</Label>
                       <Select
-                        value={photo.format}
-                        onValueChange={(value: Format) => updatePhoto(photo.id, { format: value })}
+                        value={photo.printTypeId.toString()}
+                        onValueChange={(value) => {
+                          const newPrintTypeId = parseInt(value);
+                          const printType = getPrintTypeById(newPrintTypeId);
+                          const firstSize = printType?.size?.[0];
+                          updatePhoto(photo.id, { 
+                            printTypeId: newPrintTypeId,
+                            sizeId: firstSize?.id || photo.sizeId
+                          });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {formats.map((format) => (
-                            <SelectItem key={format} value={format}>
-                              {format}
+                          {printTypes.map((printType) => (
+                            <SelectItem key={printType.id} value={printType.id.toString()}>
+                              {printType.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -392,16 +515,17 @@ export const PrintPhotoFlow = () => {
                     <div className="space-y-2">
                       <Label>Size</Label>
                       <Select
-                        value={photo.size}
-                        onValueChange={(value: Size) => updatePhoto(photo.id, { size: value })}
+                        value={photo.sizeId.toString()}
+                        onValueChange={(value) => updatePhoto(photo.id, { sizeId: parseInt(value), useCustomSize: false })}
+                        disabled={photo.useCustomSize}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(sizes).map(([key, size]) => (
-                            <SelectItem key={key} value={key}>
-                              {size.name} - {size.price} tk
+                          {getAvailableSizes(photo.printTypeId).map((size) => (
+                            <SelectItem key={size.id} value={size.id.toString()}>
+                              {size.name} ({size.dimention}) - {parseFloat(size.price).toFixed(0)} tk
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -409,13 +533,95 @@ export const PrintPhotoFlow = () => {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                    <div>
-                      <span className="font-medium">Price for this photo:</span>
-                      <p className="text-sm text-muted-foreground">{sizes[photo.size].name}</p>
+                  {/* Custom Size Option */}
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`custom-size-${photo.id}`}
+                        checked={photo.useCustomSize || false}
+                        onCheckedChange={(checked) => {
+                          updatePhoto(photo.id, { 
+                            useCustomSize: checked as boolean,
+                            customSize: checked ? { width: '12', height: '18' } : undefined
+                          });
+                        }}
+                      />
+                      <Label htmlFor={`custom-size-${photo.id}`} className="font-medium cursor-pointer">
+                        Use Custom Size
+                      </Label>
                     </div>
-                    <span className="text-xl font-bold text-primary">{sizes[photo.size].price} tk</span>
+                    
+                    {photo.useCustomSize && (
+                      <div className="grid grid-cols-2 gap-3 pl-6">
+                        <div className="space-y-2">
+                          <Label htmlFor={`width-${photo.id}`}>Width (inches)</Label>
+                          <Input
+                            id={`width-${photo.id}`}
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            placeholder="12"
+                            value={photo.customSize?.width || ''}
+                            onChange={(e) => updatePhoto(photo.id, {
+                              customSize: {
+                                width: e.target.value,
+                                height: photo.customSize?.height || ''
+                              }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`height-${photo.id}`}>Height (inches)</Label>
+                          <Input
+                            id={`height-${photo.id}`}
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            placeholder="18"
+                            value={photo.customSize?.height || ''}
+                            onChange={(e) => updatePhoto(photo.id, {
+                              customSize: {
+                                width: photo.customSize?.width || '',
+                                height: e.target.value
+                              }
+                            })}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {(() => {
+                    if (photo.useCustomSize && photo.customSize) {
+                      const customPrice = getCustomSizePrice();
+                      const extraLargePrice = getExtraLargePrice();
+                      return (
+                        <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                          <div>
+                            <span className="font-medium">Price for this photo:</span>
+                            <p className="text-sm text-muted-foreground">
+                              Custom Size ({photo.customSize.width}" x {photo.customSize.height}") - Extra Large: {extraLargePrice.toFixed(0)} + 200
+                            </p>
+                          </div>
+                          <span className="text-xl font-bold text-primary">
+                            {customPrice.toFixed(0)} tk
+                          </span>
+                        </div>
+                      );
+                    }
+                    const size = getSizeById(photo.sizeId);
+                    return (
+                      <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                        <div>
+                          <span className="font-medium">Price for this photo:</span>
+                          <p className="text-sm text-muted-foreground">{size?.name} ({size?.dimention})</p>
+                        </div>
+                        <span className="text-xl font-bold text-primary">
+                          {size ? parseFloat(size.price).toFixed(0) : 0} tk
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </Card>

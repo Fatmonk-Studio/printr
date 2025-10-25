@@ -47,6 +47,7 @@ export const CollageFlow = () => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [imageTransforms, setImageTransforms] = useState<Map<string, ImageTransformData>>(new Map());
+  const [capturedCollageBlob, setCapturedCollageBlob] = useState<Blob | null>(null);
   const collageRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
@@ -494,125 +495,94 @@ export const CollageFlow = () => {
     }
   };
 
-  const handleSubmitOrder = async (contactData: ContactFormData) => {
-    const deliveryCharge = getDeliveryCharge(contactData);
-    const subtotal = getTotalPrice();
-    const total = subtotal + deliveryCharge;
-
-    // Capture edited collage
-    const editedCollageBlob = await captureEditedCollage();
-
-    // Build complete order structure
-    const orderData = {
-      customer: {
-        name: contactData.name,
-        phone: contactData.phone,
-        location: contactData.location,
-        additionalInfo: contactData.additionalInfo || ""
-      },
-      payment: {
-        method: contactData.paymentMethod,
-        ...(contactData.paymentMethod === 'cod' && {
-          deliveryLocation: contactData.deliveryLocation
-        }),
-        deliveryCharge
-      },
-      collage: {
-        size: collageSize,
-        sizeDetails: COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES],
-        shape: selectedShape,
-        layout: getLayoutDescription(images.length),
-        totalPhotos: images.length
-      },
-      pricing: {
-        subtotal,
-        deliveryCharge,
-        total
-      },
-      photos: selectedImg.map((file, index) => {
-        const imageId = images[index];
-        const transformData = imageTransforms.get(imageId);
-        const hasEdits = transformData && (transformData.scale !== 1 || transformData.position.x !== 0 || transformData.position.y !== 0);
-
-        return {
-          index: index + 1,
-          originalFileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          hasEdits,
-          ...(hasEdits && {
-            transformData: {
-              scale: transformData.scale,
-              positionX: transformData.position.x,
-              positionY: transformData.position.y
-            }
-          })
-        };
-      }),
-      metadata: {
-        orderDate: new Date().toISOString(),
-        serviceType: "collage"
-      }
-    };
-
-    // Log complete order structure
-    console.log('\n' + '═'.repeat(70));
-    console.log('          COLLAGE ORDER SUBMISSION - COMPLETE DATA');
-    console.log('═'.repeat(70) + '\n');
-
-    console.log('📦 COMPLETE ORDER OBJECT:');
-    console.log(JSON.stringify(orderData, null, 2));
-
-    console.log('\n' + '═'.repeat(70));
-    console.log('              RAW & EDITED IMAGES');
-    console.log('═'.repeat(70) + '\n');
-
-    // Log raw images
-    console.log('📸 RAW IMAGES (Original Files):');
-    selectedImg.forEach((file, index) => {
-      const imageId = images[index];
-      const transformData = imageTransforms.get(imageId);
-      const hasEdits = transformData && (transformData.scale !== 1 || transformData.position.x !== 0 || transformData.position.y !== 0);
-      
-      console.log(`\n   Photo ${index + 1}:`);
-      console.log(`   Original File: ${file.name}`);
-      console.log(`   Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-      console.log(`   Type: ${file.type}`);
-      console.log(`   Has Edits: ${hasEdits ? 'Yes' : 'No'}`);
-      
-      if (hasEdits && transformData) {
-        console.log(`   Transform Data:`);
-        console.log(`     - Scale: ${transformData.scale.toFixed(2)}x`);
-        console.log(`     - Position X: ${transformData.position.x}px`);
-        console.log(`     - Position Y: ${transformData.position.y}px`);
-      }
-      
-      // Log the raw file object
-      console.log(`   Raw File Object:`, file);
-    });
-
-    // Log edited collage
-    if (editedCollageBlob) {
-      console.log('\n🎨 EDITED COLLAGE (Final Rendered Version):');
-      console.log(`   Size: ${(editedCollageBlob.size / 1024 / 1024).toFixed(2)} MB`);
-      console.log(`   Type: image/jpeg`);
-      console.log(`   Resolution: High quality (2x scale)`);
-      console.log(`   Edited Collage Blob:`, editedCollageBlob);
+  // Function to handle continuing to contact form
+  const handleContinueToContact = async () => {
+    toast.loading("Preparing your collage...");
+    
+    const collageBlob = await captureEditedCollage();
+    
+    if (!collageBlob) {
+      toast.dismiss();
+      toast.error('Failed to capture collage. Please try again.');
+      return;
     }
+    
+    setCapturedCollageBlob(collageBlob);
+    toast.dismiss();
+    toast.success("Collage ready!");
+    setShowContactForm(true);
+  };
 
-    console.log('\n' + '═'.repeat(70));
-    console.log('              PRICING SUMMARY');
-    console.log('═'.repeat(70) + '\n');
+  const handleSubmitOrder = async (contactData: ContactFormData) => {
+    try {
+      toast.loading("Submitting your collage order...");
 
-    console.log('💰 PRICING BREAKDOWN:');
-    console.log(`   Collage: ${COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].name}`);
-    console.log(`   Subtotal: ${subtotal} tk`);
-    console.log(`   Delivery: ${deliveryCharge} tk`);
-    console.log(`   Total: ${total} tk`);
+      // Use the previously captured collage blob
+      const editedCollageBlob = capturedCollageBlob;
 
-    console.log('\n' + '═'.repeat(70) + '\n');
+      if (!editedCollageBlob) {
+        toast.dismiss();
+        toast.error('Failed to capture collage. Please try again.');
+        return;
+      }
 
-    toast.success("Order submitted! Check console for complete data.");
+      const formData = new FormData();
+      formData.append('name', contactData.name);
+      formData.append('email', contactData.email);
+      formData.append('phone', contactData.phone);
+      formData.append('service_id', '3');
+      formData.append('location', contactData.location);
+      formData.append('delivery_type', contactData.deliveryLocation || 'inside_dhaka');
+      formData.append('payment_method', contactData.paymentMethod);
+
+      if (contactData.additionalInfo) {
+        formData.append('additional_info', contactData.additionalInfo);
+      }
+
+      // Determine size_id based on collageSize
+      // Map collage size to size_id (you may need to adjust these IDs based on your API)
+      const sizeIdMap: { [key: string]: number } = {
+        'square-small': 1,    // 12" × 12" Square
+        'square-large': 2,    // 16" × 16" Square
+        'rectangle-medium': 3, // 16" × 12" Rectangle
+        'rectangle-large': 4   // 20" × 16" Rectangle
+      };
+
+      const sizeId = sizeIdMap[collageSize] || 1;
+      const orientation = selectedShape === 'square' ? 'square' : 'landscape';
+
+      // Add single collage document
+      formData.append('documents[0][size_id]', sizeId.toString());
+      formData.append('documents[0][orientation]', orientation);
+      formData.append('documents[0][bleed_type]', 'none');
+      formData.append('documents[0][print_type_id]', '1');
+      formData.append('documents[0][file]', editedCollageBlob, 'collage.jpg');
+
+      const response = await fetch('https://admin.printr.store/api/service/submit', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      toast.dismiss();
+
+      if (response.ok && result.success) {
+        toast.success("Collage order submitted successfully!");
+        setImages([]);
+        setSelectedImg([]);
+        setShowCollage(false);
+        setShowContactForm(false);
+        setImageTransforms(new Map());
+        setCapturedCollageBlob(null);
+      } else {
+        toast.error(result.message || 'Failed to submit order. Please try again.');
+      }
+      
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to submit order. Please try again.');
+    }
   };
 
   const layout = getCollageLayout(images.length, selectedShape);
@@ -848,7 +818,7 @@ export const CollageFlow = () => {
                 {COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].name} Collage
               </p>
             </div>
-            <Button variant="hero" size="lg" onClick={() => setShowContactForm(true)}>
+            <Button variant="hero" size="lg" onClick={handleContinueToContact}>
               Continue to Contact Info
             </Button>
           </div>

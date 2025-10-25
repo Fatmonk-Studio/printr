@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X, RotateCw } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
 import { ImagePreviewCanvas, CropData } from "./ImagePreviewCanvas";
 import { toast } from "sonner";
 
-type Format = "HD matte sticker paper" | "3mm Board HD matte pasted frame" | "5mm Board HD matte pasted frame" | "Premium Framed Print with Glass" | "Premium Framed Print without Glass";
-type Size = "8.5x4" | "12x18" | "16x24" | "24x36";
 type BleedType = "no-bleed" | "small-bleed" | "medium-bleed" | "large-bleed";
 
 interface Frame {
@@ -22,20 +22,26 @@ interface Frame {
   updated_at: string;
 }
 
-const sizes: Record<Size, { name: string; price: number }> = {
-  "8.5x4": { name: "8.5\" x 4\" - Small", price: 250 },
-  "12x18": { name: "12\" x 18\" - Medium", price: 350 },
-  "16x24": { name: "16\" x 24\" - Large", price: 500 },
-  "24x36": { name: "24\" x 36\" - Extra Large", price: 1000 },
-};
+interface PrintSize {
+  id: number;
+  name: string;
+  print_type_id: number;
+  status: number;
+  price: string;
+  dimention: string;
+  created_at: string;
+  updated_at: string;
+}
 
-const formats: Format[] = [
-  "HD matte sticker paper",
-  "3mm Board HD matte pasted frame",
-  "5mm Board HD matte pasted frame",
-  "Premium Framed Print with Glass",
-  "Premium Framed Print without Glass",
-];
+interface PrintType {
+  id: number;
+  name: string;
+  slug: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
+  size: PrintSize[];
+}
 
 const bleeds: Record<BleedType, { name: string }> = {
   "no-bleed": { name: "No Bleed" },
@@ -47,13 +53,18 @@ const bleeds: Record<BleedType, { name: string }> = {
 interface PhotoItem {
   id: string;
   file: File;
-  format: Format;
-  size: Size;
+  printTypeId: number;
+  sizeId: number;
   frameId: number;
   preview: string;
   cropData?: CropData;
   orientation: "horizontal" | "vertical";
   bleedType: BleedType;
+  customSize?: {
+    width: string;
+    height: string;
+  };
+  useCustomSize?: boolean;
 }
 
 // Fixed frame dimensions (always uses 12x18 as reference)
@@ -62,38 +73,57 @@ const FIXED_FRAME_DIMENSIONS = {
   height: 315
 };
 
-// Image preview dimensions with bleed options (changes based on selected size and bleed)
-const sizePreviewDimensions: Record<Size, Record<BleedType, { width: number; height: number }>> = {
-  "8.5x4": {
-    "no-bleed": { width: 235, height: 100 },
-    "small-bleed": { width: 220, height: 70 },
-    "medium-bleed": { width: 200, height: 50 },
-    "large-bleed": { width: 180, height: 40 },
-  },
-  "12x18": {
-    "no-bleed": { width: 235, height: 315 },
-    "small-bleed": { width: 220, height: 300 },
-    "medium-bleed": { width: 200, height: 280 },
-    "large-bleed": { width: 180, height: 260 },
-  },
-  "16x24": {
-    "no-bleed": { width: 235, height: 315 },
-    "small-bleed": { width: 220, height: 300 },
-    "medium-bleed": { width: 200, height: 280 },
-    "large-bleed": { width: 180, height: 260 },
-  },
-  "24x36": {
-    "no-bleed": { width: 235, height: 315 },
-    "small-bleed": { width: 220, height: 300 },
-    "medium-bleed": { width: 200, height: 280 },
-    "large-bleed": { width: 180, height: 260 },
-  },
+// Image preview dimensions with bleed options (scaled for preview)
+// Custom sizes are always constrained to fit within 12" x 16" ratio for frame simulation
+const getPreviewDimensions = (dimention: string, bleedType: BleedType): { width: number; height: number } => {
+  // Parse dimension string like "12\" x 18\""
+  const parts = dimention.split('x').map(p => parseFloat(p.trim()));
+  let [width, height] = parts;
+  
+  // Constrain custom sizes to fit within 12" x 16" frame dimensions
+  const MAX_WIDTH = 12;
+  const MAX_HEIGHT = 16;
+  
+  if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+    // Scale down to fit within frame bounds while maintaining aspect ratio
+    const widthScale = MAX_WIDTH / width;
+    const heightScale = MAX_HEIGHT / height;
+    const scale = Math.min(widthScale, heightScale);
+    width = width * scale;
+    height = height * scale;
+  }
+  
+  // Base dimensions scaled for preview (max 315px for larger dimension)
+  const scale = 315 / Math.max(width, height);
+  let baseWidth = width * scale;
+  let baseHeight = height * scale;
+  
+  // Special adjustment for 10" x 12" to prevent frame overlap
+  if (dimention === '10" x 12"') {
+    baseWidth = baseWidth * 0.85; // Reduce width by 15%
+  }
+  
+  // Adjust for bleed
+  const bleedReduction: Record<BleedType, number> = {
+    "no-bleed": 1.0,
+    "small-bleed": 0.93,
+    "medium-bleed": 0.85,
+    "large-bleed": 0.76,
+  };
+  
+  const reduction = bleedReduction[bleedType];
+  return {
+    width: Math.round(baseWidth * reduction),
+    height: Math.round(baseHeight * reduction),
+  };
 };
 
 export const FrameFlow = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [frames, setFrames] = useState<Frame[]>([]);
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
   const [loadingFrames, setLoadingFrames] = useState(true);
+  const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
 
   // Fetch frames from API
@@ -119,6 +149,29 @@ export const FrameFlow = () => {
     fetchFrames();
   }, []);
 
+  // Fetch print types and sizes from API
+  useEffect(() => {
+    const fetchPrintTypes = async () => {
+      try {
+        const response = await fetch('https://admin.printr.store/api/print-type/list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setPrintTypes(result.data);
+        } else {
+          toast.error('Failed to load print types');
+        }
+      } catch (error) {
+        console.error('Error fetching print types:', error);
+        toast.error('Failed to load print types');
+      } finally {
+        setLoadingPrintTypes(false);
+      }
+    };
+
+    fetchPrintTypes();
+  }, []);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
@@ -126,11 +179,20 @@ export const FrameFlow = () => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
+          const defaultPrintType = printTypes.length > 0 ? printTypes[0] : null;
+          
+          // Find the default size with dimension "12" x 16""
+          let defaultSize = defaultPrintType?.size?.find(s => s.dimention === '12" x 16"');
+          // If not found, use the first size as fallback
+          if (!defaultSize && defaultPrintType?.size) {
+            defaultSize = defaultPrintType.size[0];
+          }
+          
           const newPhoto: PhotoItem = {
             id: Math.random().toString(36).substr(2, 9),
             file,
-            format: "HD matte sticker paper",
-            size: "12x18",
+            printTypeId: defaultPrintType?.id || 1,
+            sizeId: defaultSize?.id || 1,
             frameId: frames.length > 0 ? frames[0].id : 1,
             preview: e.target?.result as string,
             cropData: { x: 0, y: 0, scale: 1 },
@@ -173,11 +235,53 @@ export const FrameFlow = () => {
     return frames.find(f => f.id === frameId);
   };
 
+  const getPrintTypeById = (printTypeId: number): PrintType | undefined => {
+    return printTypes.find(pt => pt.id === printTypeId);
+  };
+
+  const getSizeById = (sizeId: number): PrintSize | undefined => {
+    for (const printType of printTypes) {
+      const size = printType.size.find(s => s.id === sizeId);
+      if (size) return size;
+    }
+    return undefined;
+  };
+
+  const getAvailableSizes = (printTypeId: number): PrintSize[] => {
+    const printType = getPrintTypeById(printTypeId);
+    return printType?.size || [];
+  };
+
+  const getExtraLargePrice = (): number => {
+    // Find Extra Large size across all print types
+    for (const printType of printTypes) {
+      const extraLargeSize = printType.size.find(s => s.name === "Extra Large");
+      if (extraLargeSize) {
+        return parseFloat(extraLargeSize.price);
+      }
+    }
+    return 0;
+  };
+
+  const getCustomSizePrice = (): number => {
+    const extraLargePrice = getExtraLargePrice();
+    return extraLargePrice + 200;
+  };
+
   const getTotalPrice = () => {
     return photos.reduce((total, photo) => {
       const frame = getFrameById(photo.frameId);
-      const framePrice = frame ? 150 : 0; // Default frame price since API doesn't provide it
-      return total + sizes[photo.size].price + framePrice;
+      const framePrice = frame ? 150 : 0;
+      
+      let sizePrice = 0;
+      if (photo.useCustomSize) {
+        sizePrice = getCustomSizePrice();
+      } else {
+        const size = getSizeById(photo.sizeId);
+        sizePrice = size ? parseFloat(size.price) : 0;
+      }
+      
+      return total + sizePrice + framePrice;
     }, 0);
   };
 
@@ -204,7 +308,14 @@ export const FrameFlow = () => {
         }
 
         // Get the preview dimensions for this photo
-        const previewDim = sizePreviewDimensions[photo.size][photo.bleedType];
+        let dimensionString = '';
+        if (photo.useCustomSize && photo.customSize) {
+          dimensionString = `${photo.customSize.width}" x ${photo.customSize.height}"`;
+        } else {
+          const size = getSizeById(photo.sizeId);
+          dimensionString = size?.dimention || '12" x 16"';
+        }
+        const previewDim = getPreviewDimensions(dimensionString, photo.bleedType);
         
         // Calculate scale factor to maintain aspect ratio
         const scaleX = img.width / previewDim.width;
@@ -262,111 +373,77 @@ export const FrameFlow = () => {
 
   const handleSubmitOrder = async (contactData: ContactFormData) => {
     try {
-      toast.loading("Processing your framed photos...");
+      toast.loading("Submitting your order...");
       
-      // Process all images to create cropped versions
       const processedPhotos = await Promise.all(
         photos.map(async (photo) => {
           const croppedImageBlob = await createCroppedImage(photo);
-          const frame = getFrameById(photo.frameId);
-          const framePrice = frame ? 150 : 0;
           
           return {
-            id: photo.id,
-            originalFileName: photo.file.name,
-            croppedImageBlob: croppedImageBlob,
-            croppedImageSize: croppedImageBlob.size,
-            format: photo.format,
-            size: photo.size,
-            sizeDetails: sizes[photo.size],
+            croppedImageBlob,
+            printTypeId: photo.printTypeId,
+            sizeId: photo.sizeId,
             frameId: photo.frameId,
-            frameDetails: frame,
             orientation: photo.orientation,
             bleedType: photo.bleedType,
-            bleedDetails: bleeds[photo.bleedType],
-            price: sizes[photo.size].price + framePrice,
-            cropData: photo.cropData,
+            customSize: photo.customSize,
+            useCustomSize: photo.useCustomSize
           };
         })
       );
 
-      // Prepare the complete order data
-      const orderData = {
-        customer: {
-          name: contactData.name,
-          phone: contactData.phone,
-          location: contactData.location,
-          additionalInfo: contactData.additionalInfo,
-        },
-        payment: {
-          method: contactData.paymentMethod,
-          deliveryLocation: contactData.deliveryLocation,
-          deliveryCharge: getDeliveryCharge(contactData),
-        },
-        pricing: {
-          subtotal: getTotalPrice(),
-          deliveryCharge: getDeliveryCharge(contactData),
-          total: getTotalPrice() + getDeliveryCharge(contactData),
-        },
-        photos: processedPhotos.map(({ croppedImageBlob, ...photoMeta }) => photoMeta),
-        metadata: {
-          orderDate: new Date().toISOString(),
-          totalPhotos: photos.length,
-          serviceType: "frame",
+      const formData = new FormData();
+      formData.append('name', contactData.name);
+      formData.append('email', contactData.email);
+      formData.append('phone', contactData.phone);
+      formData.append('service_id', '1');
+      formData.append('location', contactData.location);
+      formData.append('delivery_type', contactData.deliveryLocation || 'inside_dhaka');
+      formData.append('payment_method', contactData.paymentMethod);
+
+      if (contactData.additionalInfo) {
+        formData.append('additional_info', contactData.additionalInfo);
+      }
+
+      processedPhotos.forEach((processed, index) => {
+        const photo = photos[index];
+        
+        if (photo.useCustomSize && photo.customSize) {
+          formData.append(`documents[${index}][custom_size]`, `${photo.customSize.width}x${photo.customSize.height}`);
+        } else {
+          formData.append(`documents[${index}][size_id]`, photo.sizeId.toString());
         }
-      };
-
-      // Log the complete order structure
-      console.log('╔═══════════════════════════════════════════════════════════════╗');
-      console.log('║          FRAME ORDER SUBMISSION - COMPLETE DATA               ║');
-      console.log('╚═══════════════════════════════════════════════════════════════╝\n');
-      
-      console.log('📦 COMPLETE ORDER OBJECT:');
-      const logData = {
-        ...orderData,
-        photos: orderData.photos.map((p, index) => {
-          const processed = processedPhotos[index];
-          const blobSize = (processed.croppedImageBlob.size / 1024 / 1024).toFixed(2);
-          return {
-            ...p,
-            croppedImageFile: `Cropped JPEG Blob (${blobSize} MB)`,
-          };
-        })
-      };
-      console.log(JSON.stringify(logData, null, 2));
-
-      console.log('\n╔═══════════════════════════════════════════════════════════════╗');
-      console.log('║              CROPPED IMAGES & FRAME DETAILS                   ║');
-      console.log('╚═══════════════════════════════════════════════════════════════╝\n');
-      
-      processedPhotos.forEach((photo, index) => {
-        const framePrice = photo.frameDetails ? 150 : 0;
-        console.log(`🖼️  Photo ${index + 1}:`);
-        console.log(`   Original: ${photo.originalFileName}`);
-        console.log(`   Cropped Size: ${(photo.croppedImageBlob.size / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`   Print Format: ${photo.format}`);
-        console.log(`   Print Size: ${photo.sizeDetails.name}`);
-        console.log(`   Frame: ${photo.frameDetails?.name || 'Unknown'} (${framePrice} tk)`);
-        console.log(`   Orientation: ${photo.orientation}`);
-        console.log(`   Bleed: ${photo.bleedDetails.name}`);
-        console.log(`   Print Price: ${photo.sizeDetails.price} tk`);
-        console.log(`   Total Price: ${photo.price} tk`);
-        console.log(`   Crop Data: Scale=${photo.cropData?.scale}, X=${photo.cropData?.x}, Y=${photo.cropData?.y}`);
-        console.log('');
+        
+        formData.append(`documents[${index}][frame_id]`, photo.frameId.toString());
+        formData.append(`documents[${index}][orientation]`, photo.orientation);
+        
+        const bleedType = photo.bleedType === 'no-bleed' ? 'none' : photo.bleedType;
+        formData.append(`documents[${index}][bleed_type]`, bleedType);
+        
+        formData.append(`documents[${index}][print_type_id]`, photo.printTypeId.toString());
+        formData.append(`documents[${index}][file]`, processed.croppedImageBlob, `photo_${index + 1}.jpg`);
       });
 
-      console.log('\n💰 PRICING SUMMARY:');
-      console.log(`   Subtotal: ${orderData.pricing.subtotal} tk`);
-      console.log(`   Delivery: ${orderData.pricing.deliveryCharge} tk`);
-      console.log(`   Total: ${orderData.pricing.total} tk`);
+      const response = await fetch('https://admin.printr.store/api/service/submit', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
 
       toast.dismiss();
-      toast.success("Frame order data logged to console!");
+
+      if (response.ok && result.success) {
+        toast.success("Order submitted successfully!");
+        setPhotos([]);
+        setShowContactForm(false);
+      } else {
+        toast.error(result.message || 'Failed to submit order. Please try again.');
+      }
       
     } catch (error) {
-      console.error('Order processing error:', error);
       toast.dismiss();
-      toast.error('Failed to process order. Please try again.');
+      toast.error('Failed to submit order. Please try again.');
     }
   };
 
@@ -386,14 +463,27 @@ export const FrameFlow = () => {
             {photos.map((photo) => {
               const frame = getFrameById(photo.frameId);
               const framePrice = frame ? 150 : 0;
+              
+              let sizePrice = 0;
+              let sizeDisplay = '';
+              
+              if (photo.useCustomSize && photo.customSize) {
+                sizePrice = getCustomSizePrice();
+                sizeDisplay = `Custom Size (${photo.customSize.width}" x ${photo.customSize.height}")`;
+              } else {
+                const size = getSizeById(photo.sizeId);
+                sizePrice = size ? parseFloat(size.price) : 0;
+                sizeDisplay = size?.dimention || 'Unknown';
+              }
+              
               return (
                 <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                   <div>
                     <p className="text-sm font-medium">{photo.file.name}</p>
-                    <p className="text-xs text-muted-foreground">{frame?.name || 'Unknown'} Frame</p>
+                    <p className="text-xs text-muted-foreground">{frame?.name || 'Unknown'} Frame - {sizeDisplay}</p>
                   </div>
                   <span className="text-sm font-medium">
-                    {sizes[photo.size].price + framePrice} tk
+                    {(sizePrice + framePrice).toFixed(0)} tk
                   </span>
                 </div>
               );
@@ -490,18 +580,26 @@ export const FrameFlow = () => {
                         transform: 'translate(-50%, -50%)',
                         zIndex: 1
                       }}>
-                        <ImagePreviewCanvas
-                          imageUrl={photo.preview}
-                          width={photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions[photo.size][photo.bleedType].width 
-                            : sizePreviewDimensions[photo.size][photo.bleedType].height}
-                          height={photo.orientation === "horizontal" 
-                            ? sizePreviewDimensions[photo.size][photo.bleedType].height 
-                            : sizePreviewDimensions[photo.size][photo.bleedType].width}
-                          onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
-                          showControls={false}
-                          initialCropData={photo.cropData}
-                        />
+                        {(() => {
+                          let dimensionString = '';
+                          if (photo.useCustomSize && photo.customSize) {
+                            dimensionString = `${photo.customSize.width}" x ${photo.customSize.height}"`;
+                          } else {
+                            const size = getSizeById(photo.sizeId);
+                            dimensionString = size?.dimention || '12" x 16"';
+                          }
+                          const dims = getPreviewDimensions(dimensionString, photo.bleedType);
+                          return (
+                            <ImagePreviewCanvas
+                              imageUrl={photo.preview}
+                              width={photo.orientation === "horizontal" ? dims.width : dims.height}
+                              height={photo.orientation === "horizontal" ? dims.height : dims.width}
+                              onCropChange={(cropData) => updatePhotoCrop(photo.id, cropData)}
+                              showControls={false}
+                              initialCropData={photo.cropData}
+                            />
+                          );
+                        })()}
                       </div>
                       
                       {/* Frame overlay - Fixed size using FIXED_FRAME_DIMENSIONS */}
@@ -618,41 +716,57 @@ export const FrameFlow = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Format</Label>
-                      <Select
-                        value={photo.format}
-                        onValueChange={(value: Format) => updatePhoto(photo.id, { format: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formats.map((format) => (
-                            <SelectItem key={format} value={format}>
-                              {format}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Print Type</Label>
+                      {loadingPrintTypes ? (
+                        <p className="text-sm text-muted-foreground">Loading...</p>
+                      ) : (
+                        <Select
+                          value={photo.printTypeId.toString()}
+                          onValueChange={(value) => {
+                            const printTypeId = parseInt(value);
+                            const sizes = getAvailableSizes(printTypeId);
+                            updatePhoto(photo.id, { 
+                              printTypeId,
+                              sizeId: sizes.length > 0 ? sizes[0].id : photo.sizeId
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {printTypes.map((printType) => (
+                              <SelectItem key={printType.id} value={printType.id.toString()}>
+                                {printType.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div className="space-y-2">
                       <Label>Size</Label>
-                      <Select
-                        value={photo.size}
-                        onValueChange={(value: Size) => updatePhoto(photo.id, { size: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(sizes).map(([key, size]) => (
-                            <SelectItem key={key} value={key}>
-                              {size.name} - {size.price} tk
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {loadingPrintTypes ? (
+                        <p className="text-sm text-muted-foreground">Loading...</p>
+                      ) : (
+                        <Select
+                          value={photo.sizeId.toString()}
+                          onValueChange={(value) => updatePhoto(photo.id, { sizeId: parseInt(value), useCustomSize: false })}
+                          disabled={photo.useCustomSize}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableSizes(photo.printTypeId).map((size) => (
+                              <SelectItem key={size.id} value={size.id.toString()}>
+                                {size.name} ({size.dimention}) - {parseFloat(size.price).toFixed(0)} tk
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -675,16 +789,102 @@ export const FrameFlow = () => {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                    <div>
-                      <span className="font-medium">Price for this framed photo:</span>
-                      <p className="text-sm text-muted-foreground">
-                        Print: {sizes[photo.size].price} tk + Frame: 150 tk
-                      </p>
+                  {/* Custom Size Option */}
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`custom-size-${photo.id}`}
+                        checked={photo.useCustomSize || false}
+                        onCheckedChange={(checked) => {
+                          updatePhoto(photo.id, { 
+                            useCustomSize: checked as boolean,
+                            customSize: checked ? { width: '10', height: '12' } : undefined
+                          });
+                        }}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor={`custom-size-${photo.id}`} className="font-medium cursor-pointer">
+                          Use Custom Size (simulated in 12" x 16" frame)
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Custom sizes will be constrained to fit within the frame dimensions while maintaining aspect ratio
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xl font-bold text-primary">
-                      {sizes[photo.size].price + 150} tk
-                    </span>
+                    
+                    {photo.useCustomSize && (
+                      <div className="grid grid-cols-2 gap-3 pl-6">
+                        <div className="space-y-2">
+                          <Label htmlFor={`width-${photo.id}`}>Width (inches)</Label>
+                          <Input
+                            id={`width-${photo.id}`}
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            max="12"
+                            placeholder="10"
+                            value={photo.customSize?.width || ''}
+                            onChange={(e) => updatePhoto(photo.id, {
+                              customSize: {
+                                width: e.target.value,
+                                height: photo.customSize?.height || ''
+                              }
+                            })}
+                          />
+                          <p className="text-xs text-muted-foreground">Max: 12"</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`height-${photo.id}`}>Height (inches)</Label>
+                          <Input
+                            id={`height-${photo.id}`}
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            max="16"
+                            placeholder="12"
+                            value={photo.customSize?.height || ''}
+                            onChange={(e) => updatePhoto(photo.id, {
+                              customSize: {
+                                width: photo.customSize?.width || '',
+                                height: e.target.value
+                              }
+                            })}
+                          />
+                          <p className="text-xs text-muted-foreground">Max: 16"</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                    {(() => {
+                      let sizePrice = 0;
+                      let sizeInfo = '';
+                      
+                      if (photo.useCustomSize && photo.customSize) {
+                        sizePrice = getCustomSizePrice();
+                        const extraLargePrice = getExtraLargePrice();
+                        sizeInfo = `Custom: ${photo.customSize.width}" x ${photo.customSize.height}" (Extra Large: ${extraLargePrice.toFixed(0)} + 200)`;
+                      } else {
+                        const size = getSizeById(photo.sizeId);
+                        sizePrice = size ? parseFloat(size.price) : 0;
+                        sizeInfo = `Print: ${sizePrice.toFixed(0)} tk`;
+                      }
+                      
+                      return (
+                        <>
+                          <div>
+                            <span className="font-medium">Price for this framed photo:</span>
+                            <p className="text-sm text-muted-foreground">
+                              {sizeInfo} + Frame: 150 tk
+                            </p>
+                          </div>
+                          <span className="text-xl font-bold text-primary">
+                            {(sizePrice + 150).toFixed(0)} tk
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

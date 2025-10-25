@@ -1,31 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface AlbumCoverSelectorProps {
   shape: "square" | "rectangle";
-  onCoverSelected: (cover: string | File) => void;
+  onCoverSelected: (cover: string | File, coverId?: number) => void;
   selectedCover: string | File | null;
 }
 
-const PRESET_COVERS = {
-  square: [
-    "https://images.unsplash.com/photo-1542281286-9e0a16bb7366",
-    "https://images.unsplash.com/photo-1518756131217-31eb79b20e8f",
-    "https://images.unsplash.com/photo-1557683316-973673baf926",
-  ],
-  rectangle: [
-    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29",
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05",
-    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e",
-  ],
-};
+interface AlbumCover {
+  id: number;
+  name: string;
+  slug: string;
+  type: "square" | "rectangle";
+  status: number;
+  image: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: AlbumCoverSelectorProps) => {
   const [customCover, setCustomCover] = useState<File | null>(null);
-  const presets = PRESET_COVERS[shape];
+  const [albumCovers, setAlbumCovers] = useState<AlbumCover[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch album covers from API
+  useEffect(() => {
+    const fetchAlbumCovers = async () => {
+      try {
+        const response = await fetch('https://admin.printr.store/api/album/list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Filter by shape type
+          const filteredCovers = result.data.filter((cover: AlbumCover) => cover.type === shape);
+          setAlbumCovers(filteredCovers);
+        } else {
+          toast.error('Failed to load album covers');
+        }
+      } catch (error) {
+        console.error('Error fetching album covers:', error);
+        toast.error('Failed to load album covers');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlbumCovers();
+  }, [shape]);
+
+  const presets = albumCovers;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,34 +62,51 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
     }
   };
 
-  const isSelected = (cover: string | File) => {
-    if (typeof cover === 'string' && typeof selectedCover === 'string') {
-      return cover === selectedCover;
-    }
+  const isSelected = (cover: AlbumCover | File) => {
     if (cover instanceof File && selectedCover instanceof File) {
       return cover.name === selectedCover.name;
     }
+    if (typeof cover === 'object' && 'id' in cover && typeof selectedCover === 'string') {
+      return cover.image === selectedCover;
+    }
     return false;
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Label>Select Album Cover</Label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="overflow-hidden">
+              <div className={shape === "square" ? "aspect-square" : "aspect-[4/3]"}>
+                <div className="w-full h-full bg-muted animate-pulse" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <Label>Select Album Cover</Label>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {presets.map((preset, index) => (
+        {presets.map((preset) => (
           <Card
-            key={preset}
+            key={preset.id}
             className={`cursor-pointer overflow-hidden transition-all ${
               isSelected(preset)
                 ? 'ring-2 ring-primary shadow-lg scale-105'
                 : 'hover:shadow-md hover:scale-102'
             }`}
-            onClick={() => onCoverSelected(preset)}
+            onClick={() => onCoverSelected(preset.image, preset.id)}
           >
             <div className={shape === "square" ? "aspect-square" : "aspect-[4/3]"}>
               <img
-                src={preset}
-                alt={`Cover ${index + 1}`}
+                src={preset.image}
+                alt={preset.name}
                 className="w-full h-full object-cover"
               />
             </div>
