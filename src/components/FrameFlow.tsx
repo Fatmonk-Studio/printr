@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,15 +8,19 @@ import { ContactForm, ContactFormData } from "./ContactForm";
 import { ImagePreviewCanvas, CropData } from "./ImagePreviewCanvas";
 import { toast } from "sonner";
 
-// Import frame assets
-import classicWoodFrame from "@/assets/frames/classic-wood.png";
-import modernBlackFrame from "@/assets/frames/modern-black.png";
-import elegantWhiteFrame from "@/assets/frames/elegant-white.png";
-
 type Format = "HD matte sticker paper" | "3mm Board HD matte pasted frame" | "5mm Board HD matte pasted frame" | "Premium Framed Print with Glass" | "Premium Framed Print without Glass";
 type Size = "8.5x4" | "12x18" | "16x24" | "24x36";
-type FrameType = "classic-wood" | "modern-black" | "elegant-white";
 type BleedType = "no-bleed" | "small-bleed" | "medium-bleed" | "large-bleed";
+
+interface Frame {
+  id: number;
+  name: string;
+  slug: string;
+  status: number;
+  image: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const sizes: Record<Size, { name: string; price: number }> = {
   "8.5x4": { name: "8.5\" x 4\" - Small", price: 250 },
@@ -33,12 +37,6 @@ const formats: Format[] = [
   "Premium Framed Print without Glass",
 ];
 
-const frames: Record<FrameType, { name: string; image: string; price: number }> = {
-  "classic-wood": { name: "Classic Wood", image: classicWoodFrame, price: 150 },
-  "modern-black": { name: "Modern Black", image: modernBlackFrame, price: 200 },
-  "elegant-white": { name: "Elegant White", image: elegantWhiteFrame, price: 175 },
-};
-
 const bleeds: Record<BleedType, { name: string }> = {
   "no-bleed": { name: "No Bleed" },
   "small-bleed": { name: "Small Bleed" },
@@ -51,7 +49,7 @@ interface PhotoItem {
   file: File;
   format: Format;
   size: Size;
-  frameType: FrameType;
+  frameId: number;
   preview: string;
   cropData?: CropData;
   orientation: "horizontal" | "vertical";
@@ -94,7 +92,32 @@ const sizePreviewDimensions: Record<Size, Record<BleedType, { width: number; hei
 
 export const FrameFlow = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [frames, setFrames] = useState<Frame[]>([]);
+  const [loadingFrames, setLoadingFrames] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
+
+  // Fetch frames from API
+  useEffect(() => {
+    const fetchFrames = async () => {
+      try {
+        const response = await fetch('https://admin.printr.store/api/frame/list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setFrames(result.data);
+        } else {
+          toast.error('Failed to load frames');
+        }
+      } catch (error) {
+        console.error('Error fetching frames:', error);
+        toast.error('Failed to load frames');
+      } finally {
+        setLoadingFrames(false);
+      }
+    };
+
+    fetchFrames();
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -108,7 +131,7 @@ export const FrameFlow = () => {
             file,
             format: "HD matte sticker paper",
             size: "12x18",
-            frameType: "classic-wood",
+            frameId: frames.length > 0 ? frames[0].id : 1,
             preview: e.target?.result as string,
             cropData: { x: 0, y: 0, scale: 1 },
             orientation: "horizontal",
@@ -146,10 +169,16 @@ export const FrameFlow = () => {
     }
   };
 
+  const getFrameById = (frameId: number): Frame | undefined => {
+    return frames.find(f => f.id === frameId);
+  };
+
   const getTotalPrice = () => {
-    return photos.reduce((total, photo) => 
-      total + sizes[photo.size].price + frames[photo.frameType].price, 0
-    );
+    return photos.reduce((total, photo) => {
+      const frame = getFrameById(photo.frameId);
+      const framePrice = frame ? 150 : 0; // Default frame price since API doesn't provide it
+      return total + sizes[photo.size].price + framePrice;
+    }, 0);
   };
 
   const getDeliveryCharge = (contactData: ContactFormData) => {
@@ -239,6 +268,8 @@ export const FrameFlow = () => {
       const processedPhotos = await Promise.all(
         photos.map(async (photo) => {
           const croppedImageBlob = await createCroppedImage(photo);
+          const frame = getFrameById(photo.frameId);
+          const framePrice = frame ? 150 : 0;
           
           return {
             id: photo.id,
@@ -248,12 +279,12 @@ export const FrameFlow = () => {
             format: photo.format,
             size: photo.size,
             sizeDetails: sizes[photo.size],
-            frameType: photo.frameType,
-            frameDetails: frames[photo.frameType],
+            frameId: photo.frameId,
+            frameDetails: frame,
             orientation: photo.orientation,
             bleedType: photo.bleedType,
             bleedDetails: bleeds[photo.bleedType],
-            price: sizes[photo.size].price + frames[photo.frameType].price,
+            price: sizes[photo.size].price + framePrice,
             cropData: photo.cropData,
           };
         })
@@ -309,12 +340,13 @@ export const FrameFlow = () => {
       console.log('╚═══════════════════════════════════════════════════════════════╝\n');
       
       processedPhotos.forEach((photo, index) => {
+        const framePrice = photo.frameDetails ? 150 : 0;
         console.log(`🖼️  Photo ${index + 1}:`);
         console.log(`   Original: ${photo.originalFileName}`);
         console.log(`   Cropped Size: ${(photo.croppedImageBlob.size / 1024 / 1024).toFixed(2)} MB`);
         console.log(`   Print Format: ${photo.format}`);
         console.log(`   Print Size: ${photo.sizeDetails.name}`);
-        console.log(`   Frame: ${photo.frameDetails.name} (${photo.frameDetails.price} tk)`);
+        console.log(`   Frame: ${photo.frameDetails?.name || 'Unknown'} (${framePrice} tk)`);
         console.log(`   Orientation: ${photo.orientation}`);
         console.log(`   Bleed: ${photo.bleedDetails.name}`);
         console.log(`   Print Price: ${photo.sizeDetails.price} tk`);
@@ -351,17 +383,21 @@ export const FrameFlow = () => {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Your Framed Photos ({photos.length})</h3>
           <div className="space-y-2">
-            {photos.map((photo) => (
-              <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">{photo.file.name}</p>
-                  <p className="text-xs text-muted-foreground">{frames[photo.frameType].name} Frame</p>
+            {photos.map((photo) => {
+              const frame = getFrameById(photo.frameId);
+              const framePrice = frame ? 150 : 0;
+              return (
+                <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{photo.file.name}</p>
+                    <p className="text-xs text-muted-foreground">{frame?.name || 'Unknown'} Frame</p>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {sizes[photo.size].price + framePrice} tk
+                  </span>
                 </div>
-                <span className="text-sm font-medium">
-                  {sizes[photo.size].price + frames[photo.frameType].price} tk
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
         
@@ -470,7 +506,7 @@ export const FrameFlow = () => {
                       
                       {/* Frame overlay - Fixed size using FIXED_FRAME_DIMENSIONS */}
                       <img
-                        src={frames[photo.frameType].image}
+                        src={getFrameById(photo.frameId)?.image || ''}
                         alt="Frame overlay"
                         className={`absolute pointer-events-none transition-transform duration-300`}
                         style={{ 
@@ -557,23 +593,27 @@ export const FrameFlow = () => {
                   
                   <div className="space-y-2">
                     <Label>Frame Style</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {Object.entries(frames).map(([key, frame]) => (
-                        <button
-                          key={key}
-                          onClick={() => updatePhoto(photo.id, { frameType: key as FrameType })}
-                          className={`p-2 border rounded-lg text-sm transition-colors ${
-                            photo.frameType === key 
-                              ? 'border-primary bg-primary/10' 
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <img src={frame.image} alt={frame.name} className="w-full h-12 object-contain mb-1 rounded bg-gray-50" />
-                          <p className="font-medium">{frame.name}</p>
-                          <p className="text-xs text-muted-foreground">+{frame.price} tk</p>
-                        </button>
-                      ))}
-                    </div>
+                    {loadingFrames ? (
+                      <p className="text-sm text-muted-foreground">Loading frames...</p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {frames.map((frame) => (
+                          <button
+                            key={frame.id}
+                            onClick={() => updatePhoto(photo.id, { frameId: frame.id })}
+                            className={`p-2 border rounded-lg text-sm transition-colors ${
+                              photo.frameId === frame.id 
+                                ? 'border-primary bg-primary/10' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <img src={frame.image} alt={frame.name} className="w-full h-12 object-contain mb-1 rounded bg-gray-50" />
+                            <p className="font-medium">{frame.name}</p>
+                            <p className="text-xs text-muted-foreground">+150 tk</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -639,11 +679,11 @@ export const FrameFlow = () => {
                     <div>
                       <span className="font-medium">Price for this framed photo:</span>
                       <p className="text-sm text-muted-foreground">
-                        Print: {sizes[photo.size].price} tk + Frame: {frames[photo.frameType].price} tk
+                        Print: {sizes[photo.size].price} tk + Frame: 150 tk
                       </p>
                     </div>
                     <span className="text-xl font-bold text-primary">
-                      {sizes[photo.size].price + frames[photo.frameType].price} tk
+                      {sizes[photo.size].price + 150} tk
                     </span>
                   </div>
                 </div>

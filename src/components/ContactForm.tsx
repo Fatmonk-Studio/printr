@@ -14,6 +14,7 @@ interface ContactFormProps {
 
 export interface ContactFormData {
   name: string;
+  email: string;
   phone: string;
   location: string;
   additionalInfo: string;
@@ -24,6 +25,7 @@ export interface ContactFormData {
 export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
   const [formData, setFormData] = useState<ContactFormData>({
     name: "",
+    email: "",
     phone: "",
     location: "",
     additionalInfo: "",
@@ -34,7 +36,7 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.phone || !formData.location) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.location) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -95,6 +97,20 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
           </div>
           
           <div className="space-y-2">
+            <Label htmlFor="email">Email *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange("email")}
+              placeholder="your.email@example.com"
+              required
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label htmlFor="phone">Phone *</Label>
             <Input
               id="phone"
@@ -105,17 +121,17 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
               required
             />
           </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="location">Location *</Label>
-          <Input
-            id="location"
-            value={formData.location}
-            onChange={handleInputChange("location")}
-            placeholder="Your address or pickup location"
-            required
-          />
+          
+          <div className="space-y-2">
+            <Label htmlFor="location">Location *</Label>
+            <Input
+              id="location"
+              value={formData.location}
+              onChange={handleInputChange("location")}
+              placeholder="Your address or pickup location"
+              required
+            />
+          </div>
         </div>
         
         <div className="space-y-2">
