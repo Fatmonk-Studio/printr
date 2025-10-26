@@ -4,8 +4,24 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Download, Check, X, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+
+interface UserInfo {
+  name: string;
+  email: string;
+  phone: string;
+}
 
 interface GalleryImage {
   id: string;
@@ -143,6 +159,14 @@ const GALLERIES: Gallery[] = [
 const EventPage = () => {
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showUserInfoDialog, setShowUserInfoDialog] = useState(false);
+  const [pendingDownload, setPendingDownload] = useState<GalleryImage | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo>({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  const [formErrors, setFormErrors] = useState<Partial<UserInfo>>({});
 
   const toggleImageSelection = (imageId: string) => {
     setSelectedImages((prev) => {
@@ -180,7 +204,76 @@ const EventPage = () => {
     toast.success(`Deselected all images from ${gallery.title}`);
   };
 
-  const downloadSingleImage = async (image: GalleryImage) => {
+  const validateUserInfo = (): boolean => {
+    const errors: Partial<UserInfo> = {};
+    
+    if (!userInfo.name.trim()) {
+      errors.name = "Name is required";
+    }
+    
+    if (!userInfo.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userInfo.email)) {
+      errors.email = "Invalid email format";
+    }
+    
+    if (!userInfo.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^[0-9]{10,15}$/.test(userInfo.phone.replace(/[\s-]/g, ""))) {
+      errors.phone = "Invalid phone number";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleUserInfoSubmit = async () => {
+    if (!validateUserInfo()) {
+      return;
+    }
+
+    try {
+      // Submit user information to API
+      toast.loading("Submitting your information...");
+      
+      const response = await fetch('https://admin.printr.store/api/customer/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: userInfo.name,
+          email: userInfo.email,
+          phone: userInfo.phone,
+        }),
+      });
+
+      const result = await response.json();
+
+      toast.dismiss();
+
+      if (response.ok && result.success) {
+        toast.success("Information submitted successfully!");
+        setShowUserInfoDialog(false);
+        
+        if (pendingDownload) {
+          // Single image download
+          performSingleDownload(pendingDownload);
+          setPendingDownload(null);
+        } else {
+          // Multiple images download
+          performBatchDownload();
+        }
+      } else {
+        toast.error(result.message || 'Failed to submit information. Please try again.');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to submit information. Please try again.');
+    }
+  };
+
+  const performSingleDownload = async (image: GalleryImage) => {
     try {
       const response = await fetch(image.url);
       const blob = await response.blob();
@@ -198,7 +291,12 @@ const EventPage = () => {
     }
   };
 
-  const downloadSelectedImages = async () => {
+  const downloadSingleImage = (image: GalleryImage) => {
+    setPendingDownload(image);
+    setShowUserInfoDialog(true);
+  };
+
+  const performBatchDownload = async () => {
     if (selectedImages.size === 0) {
       toast.error("Please select at least one image to download");
       return;
@@ -212,7 +310,7 @@ const EventPage = () => {
       const imagesToDownload = allImages.filter((img) => selectedImages.has(img.id));
 
       for (const image of imagesToDownload) {
-        await downloadSingleImage(image);
+        await performSingleDownload(image);
         // Small delay between downloads
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
@@ -226,6 +324,15 @@ const EventPage = () => {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const downloadSelectedImages = () => {
+    if (selectedImages.size === 0) {
+      toast.error("Please select at least one image to download");
+      return;
+    }
+    setPendingDownload(null);
+    setShowUserInfoDialog(true);
   };
 
   const clearSelection = () => {
@@ -283,7 +390,7 @@ const EventPage = () => {
                   <Download className="w-4 h-4" />
                   Download Selected
                 </Button>
-                <Button variant="outline" onClick={clearSelection} className="flex items-center gap-2 text-black">
+                <Button variant="outline" onClick={clearSelection} className="flex items-center gap-2 text-black dark:text-white">
                   <X className="w-4 h-4" />
                   Clear
                 </Button>
@@ -338,7 +445,7 @@ const EventPage = () => {
                   </div>
 
                   {/* Gallery Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {gallery.images.map((image) => {
                       const isSelected = selectedImages.has(image.id);
 
@@ -388,15 +495,15 @@ const EventPage = () => {
                             {/* Download Icon */}
                             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="bg-white/90 rounded-full p-2">
-                                <Download className="w-4 h-4 text-primary" />
+                                <Download className="w-4 h-4 text-primary dark:text-black" />
                               </div>
                             </div>
                           </div>
 
                           {/* Image Title */}
-                          <div className="p-4">
+                          {/* <div className="p-4">
                             <h3 className="font-medium text-sm truncate">{image.title}</h3>
-                          </div>
+                          </div> */}
                         </Card>
                       );
                     })}
@@ -416,6 +523,90 @@ const EventPage = () => {
       </section>
 
       <Footer />
+
+      {/* User Info Dialog */}
+      <Dialog open={showUserInfoDialog} onOpenChange={setShowUserInfoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Download Images</DialogTitle>
+            <DialogDescription>
+              Please provide your information to download {pendingDownload ? "this image" : `${selectedImages.size} image(s)`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                placeholder="Enter your name"
+                value={userInfo.name}
+                onChange={(e) => {
+                  setUserInfo({ ...userInfo, name: e.target.value });
+                  setFormErrors({ ...formErrors, name: "" });
+                }}
+                className={formErrors.name ? "border-red-500" : ""}
+              />
+              {formErrors.name && (
+                <p className="text-sm text-red-500">{formErrors.name}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={userInfo.email}
+                onChange={(e) => {
+                  setUserInfo({ ...userInfo, email: e.target.value });
+                  setFormErrors({ ...formErrors, email: "" });
+                }}
+                className={formErrors.email ? "border-red-500" : ""}
+              />
+              {formErrors.email && (
+                <p className="text-sm text-red-500">{formErrors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="Enter your phone number"
+                value={userInfo.phone}
+                onChange={(e) => {
+                  setUserInfo({ ...userInfo, phone: e.target.value });
+                  setFormErrors({ ...formErrors, phone: "" });
+                }}
+                className={formErrors.phone ? "border-red-500" : ""}
+              />
+              {formErrors.phone && (
+                <p className="text-sm text-red-500">{formErrors.phone}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowUserInfoDialog(false);
+                setPendingDownload(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleUserInfoSubmit}>
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

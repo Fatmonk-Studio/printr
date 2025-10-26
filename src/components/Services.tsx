@@ -30,7 +30,7 @@ export const Services = () => {
                                 Print Photos
                             </h2>
                             <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
-                                Superior quality printing, the way it should be.
+                                Superior quality printing, the way it <br></br>should be.
                             </p>
                         </div>
                     </Link>
@@ -50,7 +50,7 @@ export const Services = () => {
                                 Frame Photos
                             </h2>
                             <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
-                                High quality frames for your photos
+                                High quality frames for your <br></br> photos
                             </p>
                         </div>
                     </Link>
@@ -70,7 +70,7 @@ export const Services = () => {
                             Custom Photo Collages
                             </h2>
                             <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
-                                Beautiful collages to hang on your wall
+                                Beautiful collages to hang on <br></br> your wall
                             </p>
                         </div>
                     </Link>
@@ -90,7 +90,7 @@ export const Services = () => {
                             Custom Photo Albums
                             </h2>
                             <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
-                                Quality photo albums to keep your memories safe
+                                Quality photo albums to keep your <br></br> memories safe
                             </p>
                         </div>
                     </Link>
