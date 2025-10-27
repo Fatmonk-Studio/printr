@@ -51,13 +51,13 @@ const Contact = () => {
 
     return (
         <div className="flex flex-row justify-center">
-            <div className="bg-monkblack dark:bg-monkwhite rounded-2xl lg:flex lg:justify-between w-full lg:w-[1050px]">
+            <div className="bg-white dark:bg-[#1f1f1f] rounded-2xl lg:flex lg:justify-between w-full lg:w-[1050px] shadow-lg">
                 <form className="p-4 lg:p-10" onSubmit={handleSubmit}>
-                    <h2 className="text-3xl lg:text-5xl font-semibold font-poppins text-monkwhite dark:text-monkblack">Contact Us</h2>
+                    <h2 className="text-3xl lg:text-5xl font-semibold font-poppins text-black dark:text-white">Contact Us</h2>
                     <div className="mt-5">
                         <label className="form-control w-full max-w-xl">
                             <div className="label">
-                                <span className="label-text text-xs text-[#CCC6C6] dark:text-monkblack">Name<span className='text-monkdeepred'>*</span></span>
+                                <span className="label-text text-xs text-gray-600 dark:text-gray-400">Name<span className='text-red-600'>*</span></span>
                             </div>
                             <input
                                 type="text"
@@ -65,13 +65,13 @@ const Contact = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="Rachel Joe"
-                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4"
+                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4 bg-white dark:bg-[#2a2a2a] text-black dark:text-white border-gray-300 dark:border-gray-600"
                                 required
                             />
                         </label>
                         <label className="form-control w-full max-w-xl">
                             <div className="label">
-                                <span className="label-text text-xs text-[#CCC6C6] dark:text-monkblack">Phone<span className='text-monkdeepred'>*</span></span>
+                                <span className="label-text text-xs text-gray-600 dark:text-gray-400">Phone<span className='text-red-600'>*</span></span>
                             </div>
                             <input
                                 type="text"
@@ -79,13 +79,13 @@ const Contact = () => {
                                 value={formData.phone}
                                 onChange={handleChange}
                                 placeholder="+8801***********"
-                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4"
+                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4 bg-white dark:bg-[#2a2a2a] text-black dark:text-white border-gray-300 dark:border-gray-600"
                                 required
                             />
                         </label>
                         <label className="form-control w-full max-w-xl">
                             <div className="label">
-                                <span className="label-text text-xs text-[#CCC6C6] dark:text-monkblack">Email<span className='text-monkdeepred'>*</span></span>
+                                <span className="label-text text-xs text-gray-600 dark:text-gray-400">Email<span className='text-red-600'>*</span></span>
                             </div>
                             <input
                                 type="email"
@@ -93,20 +93,20 @@ const Contact = () => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="Rachel@domain.com"
-                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4"
+                                className="input input-bordered rounded-full w-full max-w-xl h-10 lg:h-12 pl-4 bg-white dark:bg-[#2a2a2a] text-black dark:text-white border-gray-300 dark:border-gray-600"
                                 required
                             />
                         </label>
                         <label className="form-control w-full max-w-xl">
                             <div className="label">
-                                <span className="label-text text-xs text-[#CCC6C6] dark:text-monkblack">Message<span className='text-monkdeepred'>*</span></span>
+                                <span className="label-text text-xs text-gray-600 dark:text-gray-400">Message<span className='text-red-600'>*</span></span>
                             </div>
                             <textarea
                                 name="message"
                                 value={formData.message}
                                 onChange={handleChange}
                                 placeholder="Type your query here....."
-                                className="input input-bordered rounded-full w-full max-w-xl h-16 pt-4 lg:h-20 pl-4"
+                                className="input input-bordered rounded-full w-full max-w-xl h-16 pt-4 lg:h-20 pl-4 bg-white dark:bg-[#2a2a2a] text-black dark:text-white border-gray-300 dark:border-gray-600"
                                 required
                             ></textarea>
                         </label>
@@ -121,19 +121,19 @@ const Contact = () => {
                         </p>
                     )}
                     <button type="submit">
-                        <div className="bg-monkwhite dark:bg-monkblack inline-block px-7 py-3 rounded-full mt-5">
+                        <div className="bg-black dark:bg-white inline-block px-7 py-3 rounded-full mt-5 hover:opacity-90 transition-opacity">
                             <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm text-monkblack dark:text-monkwhite font-semibold font-poppins">Submit</p>
-                                <ArrowLongRightIcon className="size-5 text-monkblack dark:text-monkwhite" />
+                                <p className="text-sm text-white dark:text-black font-semibold font-poppins">Submit</p>
+                                <ArrowLongRightIcon className="size-5 text-white dark:text-black" />
                             </div>
                         </div>
                     </button>
                     <div className="flex flex-col lg:flex-row gap-3 mt-8">
                         <div className="flex items-center gap-2">
-                            <PhoneArrowUpRightIcon className="size-6 text-monkwhite dark:text-monkwhite" />
+                            <PhoneArrowUpRightIcon className="size-6 text-black dark:text-white" />
                             <div>
-                                <h5 className="text-xs text-monkwhite dark:text-monkblack font-semibold">PHONE</h5>
-                                <p className="text-xs text-monkwhite dark:text-monkblack font-light">+8801878006118</p>
+                                <h5 className="text-xs text-black dark:text-white font-semibold">PHONE</h5>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light">+8801878006118</p>
                             </div>
                         </div>
                         {/* <div className="flex items-center gap-2">
@@ -144,10 +144,10 @@ const Contact = () => {
                             </div>
                         </div> */}
                         <div className="flex items-center gap-2">
-                            <EnvelopeOpenIcon className="size-6 text-monkwhite dark:text-monkwhite" />
+                            <EnvelopeOpenIcon className="size-6 text-black dark:text-white" />
                             <div>
-                                <h5 className="text-xs text-monkwhite dark:text-monkblack font-semibold">EMAIL</h5>
-                                <p className="text-xs text-monkwhite dark:text-monkblack font-light"> printdenbd@gmail.com</p>
+                                <h5 className="text-xs text-black dark:text-white font-semibold">EMAIL</h5>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light"> printdenbd@gmail.com</p>
                             </div>
                         </div>
                     </div>

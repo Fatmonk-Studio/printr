@@ -94,8 +94,8 @@ const Index = () => {
       <Navigation />
       {/* Hero Section */}
       <Hero onProductSelect={handleProductClick} />
-      <Features />
-      <Services />
+  <Features />
+  <Services onProductSelect={handleProductClick} />
       <HowItWorks />
       <CallToAction onProductSelect={handleProductClick} />
       <Footer />

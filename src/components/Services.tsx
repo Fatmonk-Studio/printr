@@ -2,11 +2,11 @@ import servicePrints from "@/assets/services/print.jpg";
 import serviceFrames from "@/assets/services/frame.jpg";
 import serviceCollages from "@/assets/services/collage.jpg";
 import serviceAlbums from "@/assets/services/album.jpg";
-import { Link } from "react-router-dom";
+interface ServicesProps {
+    onProductSelect?: (productId: string) => void;
+}
 
-
-
-export const Services = () => {
+export const Services = ({ onProductSelect }: ServicesProps) => {
   return (
      <div className="bg-white dark:bg-black py-10">
             <div className="lg:w-[1180px] lg:mx-auto">
@@ -14,9 +14,10 @@ export const Services = () => {
                     Our Services
                 </h1>
                 <div className="grid lg:grid-cols-4 lg:gap-4 gap-3 lg:p-0 p-4">
-                    <Link
-                        to="/print"
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg"
+                    <button
+                        type="button"
+                        onClick={() => onProductSelect?.('print')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -33,10 +34,11 @@ export const Services = () => {
                                 Superior quality printing, the way it <br></br>should be.
                             </p>
                         </div>
-                    </Link>
-                    <Link
-                        to="/frame"
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg"
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onProductSelect?.('frame')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -53,10 +55,11 @@ export const Services = () => {
                                 High quality frames for your <br></br> photos
                             </p>
                         </div>
-                    </Link>
-                    <Link
-                        to="/photo-collage"
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg"
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onProductSelect?.('collage')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -73,10 +76,11 @@ export const Services = () => {
                                 Beautiful collages to hang on <br></br> your wall
                             </p>
                         </div>
-                    </Link>
-                    <Link
-                        to="/photo-album"
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg"
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onProductSelect?.('album')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -93,7 +97,7 @@ export const Services = () => {
                                 Quality photo albums to keep your <br></br> memories safe
                             </p>
                         </div>
-                    </Link>
+                    </button>
                 </div>
             </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -38,125 +38,49 @@ interface Gallery {
   images: GalleryImage[];
 }
 
-// Sample data - replace with your actual data or API call
-const GALLERIES: Gallery[] = [
-  {
-    id: "gallery-1",
-    title: "Summer Wedding 2024",
-    description: "A beautiful celebration of love at the Grand Hall",
-    date: "June 15, 2024",
-    images: [
-      {
-        id: "img-1-1",
-        url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800",
-        title: "Wedding Ceremony",
-      },
-      {
-        id: "img-1-2",
-        url: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=800",
-        title: "Bride and Groom",
-      },
-      {
-        id: "img-1-3",
-        url: "https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800",
-        title: "Reception",
-      },
-      {
-        id: "img-1-4",
-        url: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800",
-        title: "First Dance",
-      },
-      {
-        id: "img-1-5",
-        url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800",
-        title: "Wedding Party",
-      },
-      {
-        id: "img-1-6",
-        url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=800",
-        title: "Venue Decoration",
-      },
-    ],
-  },
-  {
-    id: "gallery-2",
-    title: "Corporate Gala 2024",
-    description: "Annual company celebration and awards night",
-    date: "August 22, 2024",
-    images: [
-      {
-        id: "img-2-1",
-        url: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800",
-        title: "Event Opening",
-      },
-      {
-        id: "img-2-2",
-        url: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800",
-        title: "Keynote Speech",
-      },
-      {
-        id: "img-2-3",
-        url: "https://images.unsplash.com/photo-1505236858219-8359eb29e329?w=800",
-        title: "Networking",
-      },
-      {
-        id: "img-2-4",
-        url: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800",
-        title: "Award Ceremony",
-      },
-      {
-        id: "img-2-5",
-        url: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800",
-        title: "Team Photo",
-      },
-      {
-        id: "img-2-6",
-        url: "https://images.unsplash.com/photo-1665072464126-b53f4bd0e465?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1738",
-        title: "Dinner Reception",
-      },
-    ],
-  },
-  {
-    id: "gallery-3",
-    title: "Birthday Bash 2024",
-    description: "An unforgettable celebration with friends and family",
-    date: "September 10, 2024",
-    images: [
-      {
-        id: "img-3-1",
-        url: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800",
-        title: "Birthday Cake",
-      },
-      {
-        id: "img-3-2",
-        url: "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=800",
-        title: "Party Decorations",
-      },
-      {
-        id: "img-3-3",
-        url: "https://images.unsplash.com/photo-1558636508-e0db3814bd1d?w=800",
-        title: "Guests Arrival",
-      },
-      {
-        id: "img-3-4",
-        url: "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=800",
-        title: "Group Celebration",
-      },
-      {
-        id: "img-3-5",
-        url: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800",
-        title: "Gift Opening",
-      },
-      {
-        id: "img-3-6",
-        url: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800",
-        title: "Party Time",
-      },
-    ],
-  },
-];
+// API Response interfaces
+interface ApiGalleryImage {
+  id: number;
+  event_id: string;
+  event_category_id: string;
+  image_url: string;
+  status: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiCategory {
+  id: number;
+  event_id: string;
+  title: string;
+  status: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  galleries: ApiGalleryImage[];
+}
+
+interface ApiEvent {
+  id: number;
+  title: string;
+  status: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  categories: ApiCategory[];
+}
+
+interface ApiResponse {
+  success: boolean;
+  data: ApiEvent[];
+  message: string;
+  code: number;
+}
 
 const EventPage = () => {
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [showUserInfoDialog, setShowUserInfoDialog] = useState(false);
@@ -167,6 +91,43 @@ const EventPage = () => {
     phone: "",
   });
   const [formErrors, setFormErrors] = useState<Partial<UserInfo>>({});
+
+  // Fetch galleries from API
+  useEffect(() => {
+    const fetchGalleries = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('https://admin.printr.store/api/event/list');
+        const result: ApiResponse = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+          // Transform API data to our Gallery format
+          const transformedGalleries: Gallery[] = result.data[0].categories.map((category) => ({
+            id: `gallery-${category.id}`,
+            title: category.title,
+            description: category.description.split('\r\n')[0] || category.description, // Take first line as main description
+            date: category.description.split('\r\n\r\n')[1] || new Date(category.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            images: category.galleries.map((img, index) => ({
+              id: `img-${category.id}-${img.id}`,
+              url: `https://admin.printr.store/${img.image_url}`,
+              title: `${category.title} - Image ${index + 1}`,
+            })),
+          }));
+          
+          setGalleries(transformedGalleries);
+        } else {
+          toast.error('Failed to load galleries');
+        }
+      } catch (error) {
+        console.error('Error fetching galleries:', error);
+        toast.error('Failed to load galleries. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGalleries();
+  }, []);
 
   const toggleImageSelection = (imageId: string) => {
     setSelectedImages((prev) => {
@@ -181,7 +142,7 @@ const EventPage = () => {
   };
 
   const selectAllInGallery = (galleryId: string) => {
-    const gallery = GALLERIES.find((g) => g.id === galleryId);
+    const gallery = galleries.find((g) => g.id === galleryId);
     if (!gallery) return;
 
     setSelectedImages((prev) => {
@@ -193,7 +154,7 @@ const EventPage = () => {
   };
 
   const deselectAllInGallery = (galleryId: string) => {
-    const gallery = GALLERIES.find((g) => g.id === galleryId);
+    const gallery = galleries.find((g) => g.id === galleryId);
     if (!gallery) return;
 
     setSelectedImages((prev) => {
@@ -306,7 +267,7 @@ const EventPage = () => {
     toast.loading(`Downloading ${selectedImages.size} image(s)...`);
 
     try {
-      const allImages = GALLERIES.flatMap((g) => g.images);
+      const allImages = galleries.flatMap((g) => g.images);
       const imagesToDownload = allImages.filter((img) => selectedImages.has(img.id));
 
       for (const image of imagesToDownload) {
@@ -359,7 +320,7 @@ const EventPage = () => {
               <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
                 <ImageIcon className="w-5 h-5 text-primary" />
                 <span className="text-sm font-medium">
-                  {GALLERIES.reduce((sum, g) => sum + g.images.length, 0)} Total Photos
+                  {galleries.reduce((sum, g) => sum + g.images.length, 0)} Total Photos
                 </span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
@@ -403,12 +364,23 @@ const EventPage = () => {
       {/* Galleries Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="space-y-16">
-            {GALLERIES.map((gallery) => {
-              const selectedInGallery = gallery.images.filter((img) =>
-                selectedImages.has(img.id)
-              ).length;
-              const allSelected = selectedInGallery === gallery.images.length;
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+              <p className="text-muted-foreground">Loading galleries...</p>
+            </div>
+          ) : galleries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <ImageIcon className="w-16 h-16 text-muted-foreground mb-4" />
+              <p className="text-xl text-muted-foreground">No galleries available</p>
+            </div>
+          ) : (
+            <div className="space-y-16">
+              {galleries.map((gallery) => {
+                const selectedInGallery = gallery.images.filter((img) =>
+                  selectedImages.has(img.id)
+                ).length;
+                const allSelected = selectedInGallery === gallery.images.length;
 
               return (
                 <div key={gallery.id} className="space-y-6">
@@ -518,7 +490,8 @@ const EventPage = () => {
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
