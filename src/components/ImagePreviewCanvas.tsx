@@ -73,6 +73,40 @@ export const ImagePreviewCanvas = ({
     setIsDragging(false);
   }, []);
 
+  // Touch handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragStart({
+      x: touch.clientX - imagePosition.x,
+      y: touch.clientY - imagePosition.y,
+    });
+  }, [imagePosition]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const newPosition = {
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y,
+    };
+
+    setImagePosition(newPosition);
+    onCropChange?.({
+      x: newPosition.x,
+      y: newPosition.y,
+      scale,
+    });
+  }, [isDragging, dragStart, scale, onCropChange]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
   const handleScaleChange = (newScale: number) => {
     setScale(newScale);
     onScaleChange?.(newScale);
@@ -105,7 +139,7 @@ export const ImagePreviewCanvas = ({
       <div className="flex justify-center items-center">
         <div
           ref={canvasRef}
-          className="relative bg-white border-2 border-dashed border-border overflow-hidden cursor-move"
+          className="relative bg-white border-2 border-dashed border-border overflow-hidden cursor-move touch-none"
           style={{
             width: `${width}px`,
             height: `${height}px`,
@@ -116,6 +150,9 @@ export const ImagePreviewCanvas = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <img
             src={imageUrl}

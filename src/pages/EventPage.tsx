@@ -236,18 +236,21 @@ const EventPage = () => {
 
   const performSingleDownload = async (image: GalleryImage) => {
     try {
-      const response = await fetch(image.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Create a temporary link element and trigger download directly
       const link = document.createElement("a");
-      link.href = url;
+      link.href = image.url;
       link.download = `${image.title.replace(/\s+/g, "_")}.jpg`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      
+      // For same-origin or CORS-enabled resources
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success(`Downloaded: ${image.title}`);
+      
+      toast.success(`Downloading: ${image.title}`);
     } catch (error) {
+      console.error("Download error:", error);
       toast.error("Failed to download image");
     }
   };

@@ -174,10 +174,11 @@ const CollageItem: React.FC<CollageItemProps> = ({
         <div
           {...attributes}
           {...listeners}
-          className="absolute top-2 left-2 z-20 cursor-move bg-black/70 hover:bg-black/90 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-2 left-2 z-20 cursor-move bg-black/70 hover:bg-black/90 p-2 sm:p-1.5 rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity touch-none"
           onClick={(e) => e.stopPropagation()}
+          style={{ touchAction: 'none' }}
         >
-          <GripVertical className="w-4 h-4 text-white" />
+          <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
         </div>
       )}
 

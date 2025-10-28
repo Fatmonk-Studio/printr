@@ -73,9 +73,20 @@ const FIXED_FRAME_DIMENSIONS = {
   height: 315
 };
 
+// Mobile scaling factor
+const MOBILE_SCALE_FACTOR = 0.640; // 64% size on mobile
+
+// Get responsive frame dimensions based on screen size
+const getResponsiveFrameDimensions = (isMobile: boolean) => {
+  return {
+    width: FIXED_FRAME_DIMENSIONS.width * (isMobile ? MOBILE_SCALE_FACTOR : 1),
+    height: FIXED_FRAME_DIMENSIONS.height * (isMobile ? MOBILE_SCALE_FACTOR : 1)
+  };
+};
+
 // Image preview dimensions with bleed options (scaled for preview)
 // Custom sizes are always constrained to fit within 12" x 16" ratio for frame simulation
-const getPreviewDimensions = (dimention: string, bleedType: BleedType): { width: number; height: number } => {
+const getPreviewDimensions = (dimention: string, bleedType: BleedType, isMobile: boolean = false): { width: number; height: number } => {
   // Parse dimension string like "12\" x 18\""
   const parts = dimention.split('x').map(p => parseFloat(p.trim()));
   let [width, height] = parts;
@@ -93,10 +104,10 @@ const getPreviewDimensions = (dimention: string, bleedType: BleedType): { width:
     height = height * scale;
   }
   
-  // Base dimensions scaled for preview (max 315px for larger dimension)
-  const scale = 315 / Math.max(width, height);
-  let baseWidth = width * scale;
-  let baseHeight = height * scale;
+  // Base dimensions scaled for preview (max 315px for larger dimension on desktop)
+  const baseScale = (isMobile ? 315 * MOBILE_SCALE_FACTOR : 315) / Math.max(width, height);
+  let baseWidth = width * baseScale;
+  let baseHeight = height * baseScale;
   
   // Special adjustment for 10" x 12" to prevent frame overlap
   if (dimention === '10" x 12"') {
@@ -125,6 +136,19 @@ export const FrameFlow = () => {
   const [loadingFrames, setLoadingFrames] = useState(true);
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Fetch frames from API
   useEffect(() => {
@@ -449,16 +473,16 @@ export const FrameFlow = () => {
 
   if (showContactForm) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Order Summary</h2>
-          <Button variant="outline" onClick={() => setShowContactForm(false)}>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+          <h2 className="text-xl sm:text-2xl font-semibold">Order Summary</h2>
+          <Button variant="outline" onClick={() => setShowContactForm(false)} className="w-full sm:w-auto text-sm sm:text-base">
             Back to Photos
           </Button>
         </div>
         
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Your Framed Photos ({photos.length})</h3>
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Your Framed Photos ({photos.length})</h3>
           <div className="space-y-2">
             {photos.map((photo) => {
               const frame = getFrameById(photo.frameId);
@@ -477,12 +501,12 @@ export const FrameFlow = () => {
               }
               
               return (
-                <div key={photo.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">{photo.file.name}</p>
+                <div key={photo.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 p-3 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-xs sm:text-sm font-medium truncate">{photo.file.name}</p>
                     <p className="text-xs text-muted-foreground">{frame?.name || 'Unknown'} Frame - {sizeDisplay}</p>
                   </div>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium whitespace-nowrap">
                     {(sizePrice + framePrice).toFixed(0)} tk
                   </span>
                 </div>
@@ -497,13 +521,13 @@ export const FrameFlow = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Upload Section */}
-      <Card className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Upload Photos to Frame</h2>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground mb-4">Upload photos to create beautiful framed prints</p>
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">Upload Photos to Frame</h2>
+        <div className="border-2 border-dashed border-border rounded-lg p-6 sm:p-8 text-center">
+          <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">Upload photos to create beautiful framed prints</p>
           <input
             type="file"
             multiple
@@ -513,7 +537,7 @@ export const FrameFlow = () => {
             id="frame-upload"
           />
           <Label htmlFor="frame-upload">
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="text-sm sm:text-base">
               <span>Choose Photos</span>
             </Button>
           </Label>
@@ -523,46 +547,49 @@ export const FrameFlow = () => {
       {/* Photos List */}
       {photos.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Configure Your Framed Photos</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold px-1">Configure Your Framed Photos</h2>
           
           {photos.map((photo) => (
-            <Card key={photo.id} className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card key={photo.id} className="p-3 sm:p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Frame Preview */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Frame Preview</h3>
-                    <div className="flex gap-2">
+                    <h3 className="font-semibold text-sm sm:text-base">Frame Preview</h3>
+                    <div className="flex gap-1 sm:gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => rotateOrientation(photo.id)}
+                        className="text-xs sm:text-sm h-8 sm:h-9"
                       >
-                        <RotateCw className="w-4 h-4 mr-1" />
-                        Rotate
+                        <RotateCw className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Rotate</span>
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => removePhoto(photo.id)}
+                        className="text-xs sm:text-sm h-8 sm:h-9"
                       >
-                        <X className="w-4 h-4 mr-1" />
-                        Remove
+                        <X className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Remove</span>
                       </Button>
                     </div>
                   </div>
                   
                   {/* Frame Preview Container with fixed size */}
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Fixed position controls - above frame */}
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Preview & Crop</h4>
+                      <h4 className="font-medium text-sm">Preview & Crop</h4>
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={() => {
                           updatePhotoCrop(photo.id, { x: 0, y: 0, scale: 1 });
                         }}
+                        className="text-xs sm:text-sm h-8 sm:h-9"
                       >
                         Reset
                       </Button>
@@ -570,7 +597,7 @@ export const FrameFlow = () => {
 
                     {/* Fixed Frame Container */}
                     <div className="relative flex justify-center items-center" style={{ 
-                      minHeight: `${FIXED_FRAME_DIMENSIONS.height * 1.3}px` 
+                      minHeight: `${getResponsiveFrameDimensions(isMobile).height * 1.3}px` 
                     }}>
                       {/* Image Canvas - Dynamic size based on selected size */}
                       <div style={{
@@ -588,7 +615,7 @@ export const FrameFlow = () => {
                             const size = getSizeById(photo.sizeId);
                             dimensionString = size?.dimention || '12" x 16"';
                           }
-                          const dims = getPreviewDimensions(dimensionString, photo.bleedType);
+                          const dims = getPreviewDimensions(dimensionString, photo.bleedType, isMobile);
                           return (
                             <ImagePreviewCanvas
                               imageUrl={photo.preview}
@@ -602,7 +629,7 @@ export const FrameFlow = () => {
                         })()}
                       </div>
                       
-                      {/* Frame overlay - Fixed size using FIXED_FRAME_DIMENSIONS */}
+                      {/* Frame overlay - Fixed size using responsive dimensions */}
                       <img
                         src={getFrameById(photo.frameId)?.image || ''}
                         alt="Frame overlay"
@@ -612,11 +639,11 @@ export const FrameFlow = () => {
                           top: '50%',
                           left: '50%',
                           width: `${(photo.orientation === "horizontal" 
-                            ? FIXED_FRAME_DIMENSIONS.width 
-                            : FIXED_FRAME_DIMENSIONS.height) * 1.9}px`,
+                            ? getResponsiveFrameDimensions(isMobile).width 
+                            : getResponsiveFrameDimensions(isMobile).height) * 1.9}px`,
                           height: `${(photo.orientation === "horizontal" 
-                            ? FIXED_FRAME_DIMENSIONS.height 
-                            : FIXED_FRAME_DIMENSIONS.width) * 1.9}px`,
+                            ? getResponsiveFrameDimensions(isMobile).height 
+                            : getResponsiveFrameDimensions(isMobile).width) * 1.9}px`,
                           objectFit: 'contain',
                           transform: `translate(-50%, -50%) ${photo.orientation === "horizontal" ? "rotate(90deg)" : ""}`,
                           zIndex: 2
@@ -627,8 +654,8 @@ export const FrameFlow = () => {
                     {/* Fixed position zoom controls - below frame */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Zoom</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs sm:text-sm font-medium">Zoom</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">
                           {Math.round((photo.cropData?.scale || 1) * 100)}%
                         </span>
                       </div>
@@ -644,6 +671,7 @@ export const FrameFlow = () => {
                               scale: newScale 
                             });
                           }}
+                          className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                         >
                           -
                         </Button>
@@ -673,6 +701,7 @@ export const FrameFlow = () => {
                               scale: newScale 
                             });
                           }}
+                          className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                         >
                           +
                         </Button>
@@ -687,26 +716,26 @@ export const FrameFlow = () => {
 
                 {/* Configuration */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold">Frame Options</h3>
+                  <h3 className="font-semibold text-sm sm:text-base">Frame Options</h3>
                   
                   <div className="space-y-2">
-                    <Label>Frame Style</Label>
+                    <Label className="text-sm">Frame Style</Label>
                     {loadingFrames ? (
                       <p className="text-sm text-muted-foreground">Loading frames...</p>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {frames.map((frame) => (
                           <button
                             key={frame.id}
                             onClick={() => updatePhoto(photo.id, { frameId: frame.id })}
-                            className={`p-2 border rounded-lg text-sm transition-colors ${
+                            className={`p-2 border rounded-lg text-xs sm:text-sm transition-colors ${
                               photo.frameId === frame.id 
                                 ? 'border-primary bg-primary/10' 
                                 : 'border-border hover:border-primary/50'
                             }`}
                           >
-                            <img src={frame.image} alt={frame.name} className="w-full h-12 object-contain mb-1 rounded bg-gray-50" />
-                            <p className="font-medium">{frame.name}</p>
+                            <img src={frame.image} alt={frame.name} className="w-full h-8 sm:h-12 object-contain mb-1 rounded bg-gray-50" />
+                            <p className="font-medium truncate">{frame.name}</p>
                             <p className="text-xs text-muted-foreground">+150 tk</p>
                           </button>
                         ))}
@@ -714,9 +743,9 @@ export const FrameFlow = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
-                      <Label>Print Type</Label>
+                      <Label className="text-sm">Print Type</Label>
                       {loadingPrintTypes ? (
                         <p className="text-sm text-muted-foreground">Loading...</p>
                       ) : (
@@ -731,7 +760,7 @@ export const FrameFlow = () => {
                             });
                           }}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="text-xs sm:text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -746,7 +775,7 @@ export const FrameFlow = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Size</Label>
+                      <Label className="text-sm">Size</Label>
                       {loadingPrintTypes ? (
                         <p className="text-sm text-muted-foreground">Loading...</p>
                       ) : (
@@ -755,7 +784,7 @@ export const FrameFlow = () => {
                           onValueChange={(value) => updatePhoto(photo.id, { sizeId: parseInt(value), useCustomSize: false })}
                           disabled={photo.useCustomSize}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="text-xs sm:text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -770,12 +799,12 @@ export const FrameFlow = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Bleed</Label>
+                      <Label className="text-sm">Bleed</Label>
                       <Select
                         value={photo.bleedType}
                         onValueChange={(value: BleedType) => updatePhoto(photo.id, { bleedType: value })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-xs sm:text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -790,8 +819,8 @@ export const FrameFlow = () => {
                   </div>
 
                   {/* Custom Size Option */}
-                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                    <div className="flex items-center space-x-2">
+                  <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-start space-x-2">
                       <Checkbox
                         id={`custom-size-${photo.id}`}
                         checked={photo.useCustomSize || false}
@@ -803,7 +832,7 @@ export const FrameFlow = () => {
                         }}
                       />
                       <div className="flex-1">
-                        <Label htmlFor={`custom-size-${photo.id}`} className="font-medium cursor-pointer">
+                        <Label htmlFor={`custom-size-${photo.id}`} className="font-medium cursor-pointer text-xs sm:text-sm">
                           Use Custom Size (simulated in 12" x 16" frame)
                         </Label>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -813,9 +842,9 @@ export const FrameFlow = () => {
                     </div>
                     
                     {photo.useCustomSize && (
-                      <div className="grid grid-cols-2 gap-3 pl-6">
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3 pl-6">
                         <div className="space-y-2">
-                          <Label htmlFor={`width-${photo.id}`}>Width (inches)</Label>
+                          <Label htmlFor={`width-${photo.id}`} className="text-xs sm:text-sm">Width (inches)</Label>
                           <Input
                             id={`width-${photo.id}`}
                             type="number"
@@ -830,11 +859,12 @@ export const FrameFlow = () => {
                                 height: photo.customSize?.height || ''
                               }
                             })}
+                            className="text-xs sm:text-sm h-8 sm:h-10"
                           />
                           <p className="text-xs text-muted-foreground">Max: 12"</p>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor={`height-${photo.id}`}>Height (inches)</Label>
+                          <Label htmlFor={`height-${photo.id}`} className="text-xs sm:text-sm">Height (inches)</Label>
                           <Input
                             id={`height-${photo.id}`}
                             type="number"
@@ -849,6 +879,7 @@ export const FrameFlow = () => {
                                 height: e.target.value
                               }
                             })}
+                            className="text-xs sm:text-sm h-8 sm:h-10"
                           />
                           <p className="text-xs text-muted-foreground">Max: 16"</p>
                         </div>
@@ -856,7 +887,7 @@ export const FrameFlow = () => {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4 bg-muted rounded-lg">
                     {(() => {
                       let sizePrice = 0;
                       let sizeInfo = '';
@@ -874,12 +905,12 @@ export const FrameFlow = () => {
                       return (
                         <>
                           <div>
-                            <span className="font-medium">Price for this framed photo:</span>
-                            <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-sm sm:text-base">Price for this framed photo:</span>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {sizeInfo} + Frame: 150 tk
                             </p>
                           </div>
-                          <span className="text-xl font-bold text-primary">
+                          <span className="text-lg sm:text-xl font-bold text-primary">
                             {(sizePrice + 150).toFixed(0)} tk
                           </span>
                         </>
@@ -892,12 +923,12 @@ export const FrameFlow = () => {
           ))}
 
           {/* Continue Button */}
-          <div className="flex justify-between items-center p-6 bg-card rounded-lg border">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-4 sm:p-6 bg-card rounded-lg border">
             <div>
-              <p className="text-lg font-semibold">Total: {getTotalPrice()} tk</p>
-              <p className="text-muted-foreground">{photos.length} framed photo(s)</p>
+              <p className="text-base sm:text-lg font-semibold">Total: {getTotalPrice()} tk</p>
+              <p className="text-sm text-muted-foreground">{photos.length} framed photo(s)</p>
             </div>
-            <Button variant="hero" size="lg" onClick={() => setShowContactForm(true)}>
+            <Button variant="hero" size="lg" onClick={() => setShowContactForm(true)} className="w-full sm:w-auto">
               Continue to Contact Info
             </Button>
           </div>

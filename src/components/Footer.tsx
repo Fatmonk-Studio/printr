@@ -14,8 +14,7 @@ const Footer = () => {
                         <img src="/social/fb.png" alt="" />
                     </Link>
 
-                    <Link className='cursor-pointer' to="https://www.instagram.com/printdenbd?igsh=MXM0ZmY5MDE0NGs5MA==
-">
+                    <Link className='cursor-pointer' to="https://www.instagram.com/printr.store?igsh=cGoycXl4aTFwYzFy">
                         <img src="/social/ig.png" alt="" />
                     </Link>
                 </div>
