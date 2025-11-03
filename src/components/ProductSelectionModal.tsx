@@ -48,6 +48,14 @@ const products = [
     gradient: "from-green-500 to-emerald-500",
     comingSoon: false,
   },
+   {
+    id: "planner",
+    title: "Planner",
+    description: "Personalized planners with custom photo covers",
+    icon: Calendar,
+    gradient: "from-teal-500 to-cyan-500",
+    comingSoon: false,
+  },
   {
     id: "mug",
     title: "Print Mug",
@@ -72,14 +80,7 @@ const products = [
     gradient: "from-pink-500 to-rose-500",
     comingSoon: true,
   },
-  {
-    id: "planner",
-    title: "Planner",
-    description: "Personalized planners with custom photo covers",
-    icon: Calendar,
-    gradient: "from-teal-500 to-cyan-500",
-    comingSoon: true,
-  },
+ 
 ];
 
 export const ProductSelectionModal = ({

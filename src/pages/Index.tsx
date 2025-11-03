@@ -6,6 +6,7 @@ import { PrintPhotoFlow } from "@/components/PrintPhotoFlow";
 import { FrameFlow } from "@/components/FrameFlow";
 import { CollageFlow } from "@/components/CollageFlow";
 import { AlbumFlow } from "@/components/AlbumFlow";
+import { PlannerFlow } from "@/components/PlannerFlow";
 import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
 import { Navigation } from "@/components/Navigation";
@@ -16,7 +17,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import CallToAction from "@/components/CallToAction";
 
-type ProductFlow = "home" | "print" | "frame" | "collage" | "album";
+type ProductFlow = "home" | "print" | "frame" | "collage" | "album" | "planner";
 
 const Index = () => {
   const [currentFlow, setCurrentFlow] = useState<ProductFlow>("home");
@@ -84,6 +85,14 @@ const Index = () => {
     return (
       <ProductFlowLayout title="Album" onBack={handleBackToHome}>
         <AlbumFlow />
+      </ProductFlowLayout>
+    );
+  }
+
+  if (currentFlow === "planner") {
+    return (
+      <ProductFlowLayout title="Planner" onBack={handleBackToHome}>
+        <PlannerFlow />
       </ProductFlowLayout>
     );
   }

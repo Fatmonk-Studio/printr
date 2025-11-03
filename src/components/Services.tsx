@@ -191,19 +191,14 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                     
                     <button
                         type="button"
-                        onClick={handleComingSoon}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
+                        onClick={() => onProductSelect?.('planner')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
                     >
-                        <div className="absolute top-2 right-2 z-10">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
-                                Coming Soon
-                            </span>
-                        </div>
                         <figure className="px-4 pt-4">
                             <img
                                 src={serviceAlbums}
                                 alt="Planner"
-                                className="rounded-xl w-full opacity-75"
+                                className="rounded-xl w-full"
                             />
                         </figure>
                         <div className="card-body py-4 items-center text-center">
