@@ -6,7 +6,7 @@ import { PrintPhotoFlow } from "@/components/PrintPhotoFlow";
 import { FrameFlow } from "@/components/FrameFlow";
 import { CollageFlow } from "@/components/CollageFlow";
 import { AlbumFlow } from "@/components/AlbumFlow";
-import { PlannerFlow } from "@/components/PlannerFlow";
+
 import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
 import { Navigation } from "@/components/Navigation";
@@ -16,6 +16,7 @@ import { Services } from "@/components/Services";
 import { HowItWorks } from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import CallToAction from "@/components/CallToAction";
+import { PlannerFlow } from "@/components/PlannerFlow";
 
 type ProductFlow = "home" | "print" | "frame" | "collage" | "album" | "planner";
 

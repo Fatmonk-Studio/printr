@@ -2,6 +2,10 @@ import servicePrints from "@/assets/services/print.jpg";
 import serviceFrames from "@/assets/services/frame.jpg";
 import serviceCollages from "@/assets/services/collage.jpg";
 import serviceAlbums from "@/assets/services/album.jpg";
+import servicePlanner from "@/assets/services/planner.jpg";
+import serviceMug from "@/assets/services/mug.jpg";
+import serviceTshirt from "@/assets/services/tshirt.jpg";
+import serviceBag from "@/assets/services/bag.jpg";
 import { toast } from "sonner";
 
 interface ServicesProps {
@@ -107,7 +111,29 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                         </div>
                     </button>
                     
-                    {/* New Coming Soon Services */}
+                    {/* New and Coming Soon Services */}
+                      <button
+                        type="button"
+                        onClick={() => onProductSelect?.('planner')}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
+                    >
+                        <figure className="px-4 pt-4">
+                            <img
+                                src={servicePlanner}
+                                alt="Planner"
+                                className="rounded-xl w-full"
+                            />
+                        </figure>
+                        <div className="card-body py-4 items-center text-center">
+                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
+                                Planner
+                            </h2>
+                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
+                                Personalized planners with custom <br></br> photo covers
+                            </p>
+                        </div>
+                    </button>
+
                     <button
                         type="button"
                         onClick={handleComingSoon}
@@ -120,7 +146,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                         </div>
                         <figure className="px-4 pt-4">
                             <img
-                                src={servicePrints}
+                                src={serviceMug}
                                 alt="Print Mug"
                                 className="rounded-xl w-full opacity-75"
                             />
@@ -147,7 +173,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                         </div>
                         <figure className="px-4 pt-4">
                             <img
-                                src={serviceFrames}
+                                src={serviceTshirt}
                                 alt="T-shirt Print"
                                 className="rounded-xl w-full opacity-75"
                             />
@@ -174,7 +200,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                         </div>
                         <figure className="px-4 pt-4">
                             <img
-                                src={serviceCollages}
+                                src={serviceBag}
                                 alt="Tote Bag"
                                 className="rounded-xl w-full opacity-75"
                             />
@@ -189,27 +215,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                         </div>
                     </button>
                     
-                    <button
-                        type="button"
-                        onClick={() => onProductSelect?.('planner')}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
-                    >
-                        <figure className="px-4 pt-4">
-                            <img
-                                src={serviceAlbums}
-                                alt="Planner"
-                                className="rounded-xl w-full"
-                            />
-                        </figure>
-                        <div className="card-body py-4 items-center text-center">
-                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
-                                Planner
-                            </h2>
-                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
-                                Personalized planners with custom <br></br> photo covers
-                            </p>
-                        </div>
-                    </button>
+                  
                 </div>
             </div>
         </div>
