@@ -2,22 +2,30 @@ import servicePrints from "@/assets/services/print.jpg";
 import serviceFrames from "@/assets/services/frame.jpg";
 import serviceCollages from "@/assets/services/collage.jpg";
 import serviceAlbums from "@/assets/services/album.jpg";
+import { toast } from "sonner";
+
 interface ServicesProps {
     onProductSelect?: (productId: string) => void;
 }
 
 export const Services = ({ onProductSelect }: ServicesProps) => {
+  const handleComingSoon = () => {
+    toast.info("Coming Soon!", {
+      description: "This product will be available soon. Stay tuned!",
+    });
+  };
+
   return (
      <div className="bg-white dark:bg-black py-10">
             <div className="lg:w-[1180px] lg:mx-auto">
                 <h1 className="text-5xl text-center font-semibold text-black dark:text-white leading-[35px] md:leading-[70px] mb-10">
                     Our Services
                 </h1>
-                <div className="grid lg:grid-cols-4 lg:gap-4 gap-3 lg:p-0 p-4">
+                <div className="grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 lg:gap-4 gap-3 lg:p-0 p-4">
                     <button
                         type="button"
                         onClick={() => onProductSelect?.('print')}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -38,7 +46,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                     <button
                         type="button"
                         onClick={() => onProductSelect?.('frame')}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -59,7 +67,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                     <button
                         type="button"
                         onClick={() => onProductSelect?.('collage')}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -80,7 +88,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                     <button
                         type="button"
                         onClick={() => onProductSelect?.('album')}
-                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left"
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow"
                     >
                         <figure className="px-4 pt-4">
                             <img
@@ -95,6 +103,115 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
                             </h2>
                             <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
                                 Quality photo albums to keep your <br></br> memories safe
+                            </p>
+                        </div>
+                    </button>
+                    
+                    {/* New Coming Soon Services */}
+                    <button
+                        type="button"
+                        onClick={handleComingSoon}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
+                    >
+                        <div className="absolute top-2 right-2 z-10">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                                Coming Soon
+                            </span>
+                        </div>
+                        <figure className="px-4 pt-4">
+                            <img
+                                src={servicePrints}
+                                alt="Print Mug"
+                                className="rounded-xl w-full opacity-75"
+                            />
+                        </figure>
+                        <div className="card-body py-4 items-center text-center">
+                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
+                                Print Mug
+                            </h2>
+                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
+                                Custom printed mugs with your <br></br> favorite photos
+                            </p>
+                        </div>
+                    </button>
+                    
+                    <button
+                        type="button"
+                        onClick={handleComingSoon}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
+                    >
+                        <div className="absolute top-2 right-2 z-10">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                                Coming Soon
+                            </span>
+                        </div>
+                        <figure className="px-4 pt-4">
+                            <img
+                                src={serviceFrames}
+                                alt="T-shirt Print"
+                                className="rounded-xl w-full opacity-75"
+                            />
+                        </figure>
+                        <div className="card-body py-4 items-center text-center">
+                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
+                                T-shirt Print
+                            </h2>
+                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
+                                Personalized t-shirts with custom <br></br> photo prints
+                            </p>
+                        </div>
+                    </button>
+                    
+                    <button
+                        type="button"
+                        onClick={handleComingSoon}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
+                    >
+                        <div className="absolute top-2 right-2 z-10">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                                Coming Soon
+                            </span>
+                        </div>
+                        <figure className="px-4 pt-4">
+                            <img
+                                src={serviceCollages}
+                                alt="Tote Bag"
+                                className="rounded-xl w-full opacity-75"
+                            />
+                        </figure>
+                        <div className="card-body py-4 items-center text-center">
+                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
+                                Tote Bag
+                            </h2>
+                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
+                                Stylish tote bags with your <br></br> custom designs
+                            </p>
+                        </div>
+                    </button>
+                    
+                    <button
+                        type="button"
+                        onClick={handleComingSoon}
+                        className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
+                    >
+                        <div className="absolute top-2 right-2 z-10">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                                Coming Soon
+                            </span>
+                        </div>
+                        <figure className="px-4 pt-4">
+                            <img
+                                src={serviceAlbums}
+                                alt="Planner"
+                                className="rounded-xl w-full opacity-75"
+                            />
+                        </figure>
+                        <div className="card-body py-4 items-center text-center">
+                            <h2 className="card-title text-2xl font-bold text-[#2D2D2D] dark:text-[#f5f5f5]">
+                                Planner
+                            </h2>
+                            <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
+                                Personalized planners with custom <br></br> photo covers
                             </p>
                         </div>
                     </button>

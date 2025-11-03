@@ -341,43 +341,41 @@ export const FrameFlow = () => {
         }
         const previewDim = getPreviewDimensions(dimensionString, photo.bleedType);
         
-        // Calculate scale factor to maintain aspect ratio
-        const scaleX = img.width / previewDim.width;
-        const scaleY = img.height / previewDim.height;
-        const scale = Math.min(scaleX, scaleY);
-        
-        // Calculate actual crop dimensions in original image coordinates
+        // Get crop data (position and scale from user's editing)
         const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };
         
-        // Set canvas to preview dimensions (we'll scale it up later if needed)
-        canvas.width = previewDim.width * 2; // 2x for better quality
-        canvas.height = previewDim.height * 2;
+        // Set canvas to preview dimensions (2x for better quality)
+        const outputScale = 2;
+        canvas.width = previewDim.width * outputScale;
+        canvas.height = previewDim.height * outputScale;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Apply transformations
+        // Fill with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // The preview CSS does: transform: translate(x, y) scale(s) with transformOrigin: "top left"
+        // The image renders at its natural size in the preview, then transform is applied
+        // We need to replicate this exactly:
+        
+        // Calculate what size the image appears at in the preview container
+        // The image is rendered to fit the preview area while maintaining aspect ratio
+        const previewImageWidth = previewDim.width;
+        const previewImageHeight = (img.height / img.width) * previewImageWidth;
+        
         ctx.save();
-        ctx.translate(cropData.x * 2, cropData.y * 2);
+        
+        // Apply output scaling
+        ctx.scale(outputScale, outputScale);
+        
+        // Apply the CSS transform in the same order: translate then scale
+        ctx.translate(cropData.x, cropData.y);
         ctx.scale(cropData.scale, cropData.scale);
         
-        // Calculate dimensions to fill canvas
-        const imgAspect = img.width / img.height;
-        const canvasAspect = canvas.width / canvas.height;
+        // Draw the image at its preview size (what it would be without transform)
+        ctx.drawImage(img, 0, 0, previewImageWidth, previewImageHeight);
         
-        let drawWidth, drawHeight;
-        if (imgAspect > canvasAspect) {
-          drawHeight = canvas.height / cropData.scale;
-          drawWidth = drawHeight * imgAspect;
-        } else {
-          drawWidth = canvas.width / cropData.scale;
-          drawHeight = drawWidth / imgAspect;
-        }
-        
-        // Center the image
-        const offsetX = (canvas.width / cropData.scale - drawWidth) / 2;
-        const offsetY = (canvas.height / cropData.scale - drawHeight) / 2;
-        
-        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         ctx.restore();
 
         // Convert to blob

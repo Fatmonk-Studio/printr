@@ -5,8 +5,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
+import { Image, Frame, Grid3X3, BookOpen, Coffee, Shirt, ShoppingBag, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ProductSelectionModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ const products = [
     description: "High-quality photo prints in various formats and sizes",
     icon: Image,
     gradient: "from-blue-500 to-cyan-500",
+    comingSoon: false,
   },
   {
     id: "frame",
@@ -28,6 +30,7 @@ const products = [
     description: "Beautiful framed prints with elegant frame options",
     icon: Frame,
     gradient: "from-purple-500 to-pink-500",
+    comingSoon: false,
   },
   {
     id: "collage",
@@ -35,6 +38,7 @@ const products = [
     description: "Create stunning photo collages with multiple layouts",
     icon: Grid3X3,
     gradient: "from-orange-500 to-red-500",
+    comingSoon: false,
   },
   {
     id: "album",
@@ -42,6 +46,39 @@ const products = [
     description: "Premium photo albums with customizable layouts",
     icon: BookOpen,
     gradient: "from-green-500 to-emerald-500",
+    comingSoon: false,
+  },
+  {
+    id: "mug",
+    title: "Print Mug",
+    description: "Custom printed mugs with your favorite photos",
+    icon: Coffee,
+    gradient: "from-yellow-500 to-orange-500",
+    comingSoon: true,
+  },
+  {
+    id: "tshirt",
+    title: "T-shirt Print",
+    description: "Personalized t-shirts with custom photo prints",
+    icon: Shirt,
+    gradient: "from-indigo-500 to-blue-500",
+    comingSoon: true,
+  },
+  {
+    id: "totebag",
+    title: "Tote Bag",
+    description: "Stylish tote bags with your custom designs",
+    icon: ShoppingBag,
+    gradient: "from-pink-500 to-rose-500",
+    comingSoon: true,
+  },
+  {
+    id: "planner",
+    title: "Planner",
+    description: "Personalized planners with custom photo covers",
+    icon: Calendar,
+    gradient: "from-teal-500 to-cyan-500",
+    comingSoon: true,
   },
 ];
 
@@ -50,14 +87,20 @@ export const ProductSelectionModal = ({
   onOpenChange,
   onProductSelect,
 }: ProductSelectionModalProps) => {
-  const handleProductClick = (productId: string) => {
+  const handleProductClick = (productId: string, comingSoon: boolean) => {
+    if (comingSoon) {
+      toast.info("Coming Soon!", {
+        description: "This product will be available soon. Stay tuned!",
+      });
+      return;
+    }
     onProductSelect(productId);
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             Choose Your Product
@@ -73,16 +116,26 @@ export const ProductSelectionModal = ({
             return (
               <button
                 key={product.id}
-                onClick={() => handleProductClick(product.id)}
+                onClick={() => handleProductClick(product.id, product.comingSoon)}
                 className={cn(
                   "group relative overflow-hidden rounded-xl p-5",
                   "border-2 border-gray-200 hover:border-transparent",
                   "bg-white hover:shadow-2xl",
                   "transition-all duration-300 ease-out",
                   "hover:scale-[1.02] active:scale-[0.98]",
-                  "text-left"
+                  "text-left",
+                  product.comingSoon && "opacity-90"
                 )}
               >
+                {/* Coming Soon Badge */}
+                {product.comingSoon && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                      Coming Soon
+                    </span>
+                  </div>
+                )}
+
                 {/* Gradient background on hover */}
                 <div
                   className={cn(
@@ -118,7 +171,9 @@ export const ProductSelectionModal = ({
 
                 {/* Arrow indicator */}
                 <div className="relative mt-3 flex items-center text-gray-400 group-hover:text-gray-600 transition-colors">
-                  <span className="text-xs font-medium">Get Started</span>
+                  <span className="text-xs font-medium">
+                    {product.comingSoon ? "Notify Me" : "Get Started"}
+                  </span>
                   <svg
                     className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform"
                     fill="none"

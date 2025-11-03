@@ -159,6 +159,8 @@ export const ImagePreviewCanvas = ({
             alt="Preview"
             className="absolute select-none pointer-events-none"
             style={{
+              width: `${width}px`,
+              height: 'auto',
               transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${scale})`,
               transformOrigin: "top left",
               transition: isDragging ? "none" : "transform 0.1s ease-out",

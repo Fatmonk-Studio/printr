@@ -229,38 +229,38 @@ export const PrintPhotoFlow = () => {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
+        // Fill with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         // Calculate scaling factor from preview to full resolution
         const dimensionString = photo.useCustomSize && photo.customSize 
           ? `${photo.customSize.width}" x ${photo.customSize.height}"`
           : getSizeById(photo.sizeId)?.dimention || "12\" x 18\"";
         const previewDimensions = getPreviewDimensions(dimensionString);
-        const scaleX = targetWidth / previewDimensions.width;
-        const scaleY = targetHeight / previewDimensions.height;
         
-        // Apply transformations at full resolution
+        // Calculate scale factor from preview to print resolution
+        const outputScaleX = targetWidth / previewDimensions.width;
+        const outputScaleY = targetHeight / previewDimensions.height;
+        
+        // The preview CSS does: transform: translate(x, y) scale(s) with transformOrigin: "top left"
+        // The image renders to fit the preview width while maintaining aspect ratio
+        const previewImageWidth = previewDimensions.width;
+        const previewImageHeight = (img.height / img.width) * previewImageWidth;
+        
+        // Apply the transformations matching the preview
         ctx.save();
-        ctx.translate(cropData.x * scaleX, cropData.y * scaleY);
+        
+        // Scale the entire canvas coordinate system for high-res output
+        ctx.scale(outputScaleX, outputScaleY);
+        
+        // Apply user's pan (translate) and zoom (scale) - same as preview
+        ctx.translate(cropData.x, cropData.y);
         ctx.scale(cropData.scale, cropData.scale);
         
-        // Calculate dimensions to fill the canvas
-        const imgAspect = img.width / img.height;
-        const canvasAspect = canvas.width / canvas.height;
+        // Draw the image at its preview size
+        ctx.drawImage(img, 0, 0, previewImageWidth, previewImageHeight);
         
-        let drawWidth, drawHeight;
-        if (imgAspect > canvasAspect) {
-          drawHeight = canvas.height / cropData.scale;
-          drawWidth = drawHeight * imgAspect;
-        } else {
-          drawWidth = canvas.width / cropData.scale;
-          drawHeight = drawWidth / imgAspect;
-        }
-        
-        // Center the image
-        const offsetX = (canvas.width / cropData.scale - drawWidth) / 2;
-        const offsetY = (canvas.height / cropData.scale - drawHeight) / 2;
-        
-        // Draw the image at full resolution
-        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         ctx.restore();
 
         // Convert to high-quality blob

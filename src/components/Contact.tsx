@@ -133,7 +133,7 @@ const Contact = () => {
                             <PhoneArrowUpRightIcon className="size-6 text-black dark:text-white" />
                             <div>
                                 <h5 className="text-xs text-black dark:text-white font-semibold">PHONE</h5>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light">+8801878006118</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light">+8801901355877</p>
                             </div>
                         </div>
                         {/* <div className="flex items-center gap-2">
