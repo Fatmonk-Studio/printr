@@ -33,8 +33,8 @@ const PLANNER_OPTIONS: PlannerOption[] = [
         ],
     },
     {
-        id: "planner-basic",
-        name: "Basic Planner",
+        id: "travel-book",
+        name: "Travel Book",
         description: "Essential planner with all the key features you need",
         price: 1000,
         pdfUrl: "https://drive.google.com/file/d/1Mktv7tjKYcG3CThZWpT27eurC8G4YnOw/preview",
