@@ -9,8 +9,8 @@ const Footer = () => {
         <div className="bg-[#292929]">
             <footer className="footer lg:w-[1180px] lg:mx-auto shadow-sm px-8 py-16 flex flex-col items-center justify-center text-center">
                 <img src={whiteLogo} alt="Logo" className="mb-0 w-52" />
-                <div className="flex space-x-4">
-                    <Link className='cursor-pointer' to="/https://www.facebook.com/PrintDenBD">
+                <div className="flex space-x-4 mt-3">
+                    <Link className='cursor-pointer' to="https://www.facebook.com/share/17g8dh9gxQ/?mibextid=wwXIfr">
                         <img src="/social/fb.png" alt="" />
                     </Link>
 
