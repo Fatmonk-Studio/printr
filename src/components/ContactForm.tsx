@@ -19,7 +19,7 @@ export interface ContactFormData {
   location: string;
   additionalInfo: string;
   paymentMethod: "online" | "cod";
-  deliveryLocation?: "inside-dhaka" | "outside-dhaka";
+  deliveryLocation?: "inside_dhaka" | "outside_dhaka";
 }
 
 export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
@@ -64,12 +64,12 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
     }));
   };
 
-  const handleDeliveryLocationChange = (value: "inside-dhaka" | "outside-dhaka") => {
+  const handleDeliveryLocationChange = (value: "inside_dhaka" | "outside_dhaka") => {
     setFormData(prev => ({ ...prev, deliveryLocation: value }));
   };
 
   const getDeliveryCharge = () => {
-    if (formData.paymentMethod === "cod" && formData.deliveryLocation === "inside-dhaka") {
+    if (formData.paymentMethod === "cod" && formData.deliveryLocation === "outside_dhaka") {
       return 50;
     }
     return 0;
@@ -179,21 +179,21 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
             >
               <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
                 <div className="flex items-center space-x-3 flex-1">
-                  <RadioGroupItem value="inside-dhaka" id="inside-dhaka" />
-                  <Label htmlFor="inside-dhaka" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="inside_dhaka" id="inside_dhaka" />
+                  <Label htmlFor="inside_dhaka" className="cursor-pointer font-normal">
                     Inside Dhaka
                   </Label>
                 </div>
-                <span className="text-sm font-medium text-primary">+50 tk</span>
+                <span className="text-sm font-medium text-muted-foreground">Free</span>
               </div>
               <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
                 <div className="flex items-center space-x-3 flex-1">
-                  <RadioGroupItem value="outside-dhaka" id="outside-dhaka" />
-                  <Label htmlFor="outside-dhaka" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="outside_dhaka" id="outside_dhaka" />
+                  <Label htmlFor="outside_dhaka" className="cursor-pointer font-normal">
                     Outside Dhaka
                   </Label>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">Free</span>
+                <span className="text-sm font-medium text-primary">+50 tk</span>
               </div>
             </RadioGroup>
           </div>

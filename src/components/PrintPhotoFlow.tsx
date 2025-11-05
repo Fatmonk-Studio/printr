@@ -172,7 +172,7 @@ export const PrintPhotoFlow = () => {
   };
 
   const getDeliveryCharge = (contactData: ContactFormData) => {
-    if (contactData.paymentMethod === "cod" && contactData.deliveryLocation === "inside-dhaka") {
+    if (contactData.paymentMethod === "cod" && contactData.deliveryLocation === "outside_dhaka") {
       return 50;
     }
     return 0;
