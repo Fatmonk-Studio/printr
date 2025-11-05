@@ -150,8 +150,10 @@ export const AlbumFlow = () => {
   };
 
   const getDeliveryCharge = (contactData: ContactFormData) => {
-    if (contactData.paymentMethod === 'cod' && contactData.deliveryLocation === 'outside_dhaka') {
-      return 50;
+    if (contactData.deliveryLocation === 'inside_dhaka') {
+      return 80;
+    } else if (contactData.deliveryLocation === 'outside_dhaka') {
+      return 150;
     }
     return 0;
   };
@@ -256,6 +258,7 @@ export const AlbumFlow = () => {
       formData.append('email', contactData.email);
       formData.append('phone', contactData.phone);
       formData.append('service_id', '4');
+      formData.append('album_price', getTotalPrice().toString());
       formData.append('location', contactData.location);
       formData.append('delivery_type', contactData.deliveryLocation || 'inside_dhaka');
       formData.append('payment_method', contactData.paymentMethod);

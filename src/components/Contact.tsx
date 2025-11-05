@@ -147,7 +147,7 @@ const Contact = () => {
                             <EnvelopeOpenIcon className="size-6 text-black dark:text-white" />
                             <div>
                                 <h5 className="text-xs text-black dark:text-white font-semibold">EMAIL</h5>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light"> printdenbd@gmail.com</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 font-light">printr.bd@gmail.com</p>
                             </div>
                         </div>
                     </div>

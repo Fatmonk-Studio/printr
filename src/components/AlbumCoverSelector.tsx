@@ -110,6 +110,9 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
                 className="w-full h-full object-cover"
               />
             </div>
+            <div className="p-3 text-center bg-background">
+              <p className="text-sm font-medium">{preset.name}</p>
+            </div>
           </Card>
         ))}
         
@@ -139,6 +142,9 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
                 />
               </label>
             )}
+          </div>
+          <div className="p-3 text-center bg-background">
+            <p className="text-sm font-medium">Custom Cover</p>
           </div>
         </Card>
       </div>

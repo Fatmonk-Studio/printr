@@ -1,7 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DndContext,
@@ -27,6 +29,27 @@ import html2canvas from "html2canvas";
 
 type Shape = "square" | "rectangle";
 
+interface PrintSize {
+  id: number;
+  name: string;
+  print_type_id: number;
+  status: number;
+  price: string;
+  dimention: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PrintType {
+  id: number;
+  name: string;
+  slug: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
+  size: PrintSize[];
+}
+
 const COLLAGE_SIZES = {
   "square-small": { name: "12\" × 12\" Square", price: 800, width: 400, height: 400 },
   "square-large": { name: "16\" × 16\" Square", price: 1200, width: 500, height: 500 },
@@ -50,7 +73,43 @@ export const CollageFlow = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [imageTransforms, setImageTransforms] = useState<Map<string, ImageTransformData>>(new Map());
   const [capturedCollageBlob, setCapturedCollageBlob] = useState<Blob | null>(null);
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
+  const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
+  const [selectedPrintTypeId, setSelectedPrintTypeId] = useState<number>(1);
+  const [selectedSizeId, setSelectedSizeId] = useState<number>(1);
+  const [useCustomSize, setUseCustomSize] = useState(false);
+  const [customSize, setCustomSize] = useState({ width: '12', height: '12' });
   const collageRef = useRef<HTMLDivElement>(null);
+
+  // Fetch print types and sizes from API
+  useEffect(() => {
+    const fetchPrintTypes = async () => {
+      try {
+        const response = await fetch('https://admin.printr.store/api/print-type/list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setPrintTypes(result.data);
+          // Set default print type and size
+          if (result.data.length > 0) {
+            setSelectedPrintTypeId(result.data[0].id);
+            if (result.data[0].size && result.data[0].size.length > 0) {
+              setSelectedSizeId(result.data[0].size[0].id);
+            }
+          }
+        } else {
+          toast.error('Failed to load print types');
+        }
+      } catch (error) {
+        console.error('Error fetching print types:', error);
+        toast.error('Failed to load print types');
+      } finally {
+        setLoadingPrintTypes(false);
+      }
+    };
+
+    fetchPrintTypes();
+  }, []);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -468,13 +527,52 @@ export const CollageFlow = () => {
     }
   };
 
+  const getPrintTypeById = (printTypeId: number): PrintType | undefined => {
+    return printTypes.find(pt => pt.id === printTypeId);
+  };
+
+  const getSizeById = (sizeId: number): PrintSize | undefined => {
+    for (const printType of printTypes) {
+      const size = printType.size.find(s => s.id === sizeId);
+      if (size) return size;
+    }
+    return undefined;
+  };
+
+  const getAvailableSizes = (printTypeId: number): PrintSize[] => {
+    const printType = getPrintTypeById(printTypeId);
+    return printType?.size || [];
+  };
+
+  const getExtraLargePrice = (): number => {
+    // Find Extra Large size across all print types
+    for (const printType of printTypes) {
+      const extraLargeSize = printType.size.find(s => s.name === "Extra Large");
+      if (extraLargeSize) {
+        return parseFloat(extraLargeSize.price);
+      }
+    }
+    return 0;
+  };
+
+  const getCustomSizePrice = (): number => {
+    const extraLargePrice = getExtraLargePrice();
+    return extraLargePrice + 200;
+  };
+
   const getTotalPrice = () => {
-    return COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].price;
+    if (useCustomSize) {
+      return getCustomSizePrice();
+    }
+    const size = getSizeById(selectedSizeId);
+    return size ? parseFloat(size.price) : COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].price;
   };
 
   const getDeliveryCharge = (contactData: ContactFormData) => {
-    if (contactData.paymentMethod === 'cod' && contactData.deliveryLocation === 'outside_dhaka') {
-      return 50;
+    if (contactData.deliveryLocation === 'inside_dhaka') {
+      return 80;
+    } else if (contactData.deliveryLocation === 'outside_dhaka') {
+      return 150;
     }
     return 0;
   };
@@ -547,23 +645,17 @@ export const CollageFlow = () => {
         formData.append('additional_info', contactData.additionalInfo);
       }
 
-      // Determine size_id based on collageSize
-      // Map collage size to size_id (you may need to adjust these IDs based on your API)
-      const sizeIdMap: { [key: string]: number } = {
-        'square-small': 1,    // 12" × 12" Square
-        'square-large': 2,    // 16" × 16" Square
-        'rectangle-medium': 3, // 16" × 12" Rectangle
-        'rectangle-large': 4   // 20" × 16" Rectangle
-      };
-
-      const sizeId = sizeIdMap[collageSize] || 1;
       const orientation = selectedShape === 'square' ? 'square' : 'landscape';
 
-      // Add single collage document
-      formData.append('documents[0][size_id]', sizeId.toString());
+      // Add collage document with print type and size
+      if (useCustomSize) {
+        formData.append('documents[0][custom_size]', `${customSize.width}x${customSize.height}`);
+      } else {
+        formData.append('documents[0][size_id]', selectedSizeId.toString());
+      }
       formData.append('documents[0][orientation]', orientation);
       formData.append('documents[0][bleed_type]', 'none');
-      formData.append('documents[0][print_type_id]', '1');
+      formData.append('documents[0][print_type_id]', selectedPrintTypeId.toString());
       formData.append('documents[0][file]', editedCollageBlob, 'collage.jpg');
 
       const response = await fetch('https://admin.printr.store/api/service/submit', {
@@ -583,6 +675,8 @@ export const CollageFlow = () => {
         setShowContactForm(false);
         setImageTransforms(new Map());
         setCapturedCollageBlob(null);
+        setUseCustomSize(false);
+        setCustomSize({ width: '12', height: '12' });
       } else {
         toast.error(result.message || 'Failed to submit order. Please try again.');
       }
@@ -611,14 +705,18 @@ export const CollageFlow = () => {
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <div>
                 <p className="text-sm font-medium">
-                  {COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].name} Collage
+                  {useCustomSize ? (
+                    `Custom Size (${customSize.width}" x ${customSize.height}")`
+                  ) : (
+                    getSizeById(selectedSizeId)?.dimention || 'Custom Collage'
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {images.length} photos • {getLayoutDescription(images.length)}
                 </p>
               </div>
               <span className="text-sm font-medium">
-                {COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].price} tk
+                {getTotalPrice().toFixed(0)} tk
               </span>
             </div>
           </div>
@@ -794,36 +892,133 @@ export const CollageFlow = () => {
             </Card>
           )}
 
-          {/* Size Selection */}
+          {/* Print Options */}
           <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Choose Size</h3>
-            <div className="space-y-2">
-              <Label>Collage Size</Label>
-              <Select value={collageSize} onValueChange={setCollageSize}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(COLLAGE_SIZES)
-                    .filter(([key]) => 
-                      selectedShape === "square" ? key.includes("square") : key.includes("rectangle")
-                    )
-                    .map(([key, size]) => (
-                      <SelectItem key={key} value={key}>
-                        {size.name} - {size.price} tk
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <h3 className="text-lg font-semibold mb-4">Print Options</h3>
+            
+            {loadingPrintTypes ? (
+              <p className="text-sm text-muted-foreground">Loading print options...</p>
+            ) : (
+              <div className="space-y-4">
+                {/* Print Type and Size Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Print Type</Label>
+                    <Select
+                      value={selectedPrintTypeId.toString()}
+                      onValueChange={(value) => {
+                        const newPrintTypeId = parseInt(value);
+                        setSelectedPrintTypeId(newPrintTypeId);
+                        const printType = getPrintTypeById(newPrintTypeId);
+                        const firstSize = printType?.size?.[0];
+                        if (firstSize) {
+                          setSelectedSizeId(firstSize.id);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {printTypes.map((printType) => (
+                          <SelectItem key={printType.id} value={printType.id.toString()}>
+                            {printType.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Size</Label>
+                    <Select
+                      value={selectedSizeId.toString()}
+                      onValueChange={(value) => {
+                        setSelectedSizeId(parseInt(value));
+                        setUseCustomSize(false);
+                      }}
+                      disabled={useCustomSize}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableSizes(selectedPrintTypeId).map((size) => (
+                          <SelectItem key={size.id} value={size.id.toString()}>
+                            {size.name} ({size.dimention}) - {parseFloat(size.price).toFixed(0)} tk
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Custom Size Option */}
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
+                      id="custom-size-collage"
+                      checked={useCustomSize}
+                      onCheckedChange={(checked) => {
+                        setUseCustomSize(checked as boolean);
+                        if (checked) {
+                          setCustomSize({ width: '12', height: '12' });
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="custom-size-collage" className="font-medium cursor-pointer">
+                        Use Custom Size
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Extra Large + 200 tk
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {useCustomSize && (
+                    <div className="grid grid-cols-2 gap-3 pl-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="width-collage">Width (inches)</Label>
+                        <Input
+                          id="width-collage"
+                          type="number"
+                          step="0.1"
+                          min="1"
+                          placeholder="12"
+                          value={customSize.width}
+                          onChange={(e) => setCustomSize({ ...customSize, width: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="height-collage">Height (inches)</Label>
+                        <Input
+                          id="height-collage"
+                          type="number"
+                          step="0.1"
+                          min="1"
+                          placeholder="12"
+                          value={customSize.height}
+                          onChange={(e) => setCustomSize({ ...customSize, height: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Continue Button */}
           <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
             <div>
-              <p className="text-lg font-semibold">Total: {getTotalPrice()} tk</p>
+              <p className="text-lg font-semibold">Total: {getTotalPrice().toFixed(0)} tk</p>
               <p className="text-muted-foreground">
-                {COLLAGE_SIZES[collageSize as keyof typeof COLLAGE_SIZES].name} Collage
+                {useCustomSize ? (
+                  `Custom Size (${customSize.width}" x ${customSize.height}")`
+                ) : (
+                  getSizeById(selectedSizeId)?.dimention || 'Collage'
+                )}
               </p>
             </div>
             <Button variant="hero" size="lg" onClick={handleContinueToContact}>

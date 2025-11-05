@@ -19,7 +19,7 @@ export interface ContactFormData {
   location: string;
   additionalInfo: string;
   paymentMethod: "online" | "cod";
-  deliveryLocation?: "inside_dhaka" | "outside_dhaka";
+  deliveryLocation: "inside_dhaka" | "outside_dhaka";
 }
 
 export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
@@ -30,7 +30,7 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
     location: "",
     additionalInfo: "",
     paymentMethod: "online",
-    deliveryLocation: undefined,
+    deliveryLocation: "inside_dhaka",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,8 +41,8 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
       return;
     }
 
-    if (formData.paymentMethod === "cod" && !formData.deliveryLocation) {
-      toast.error("Please select delivery location for Cash on Delivery");
+    if (!formData.deliveryLocation) {
+      toast.error("Please select delivery location");
       return;
     }
     
@@ -59,8 +59,7 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
   const handlePaymentMethodChange = (value: "online" | "cod") => {
     setFormData(prev => ({ 
       ...prev, 
-      paymentMethod: value,
-      deliveryLocation: value === "online" ? undefined : prev.deliveryLocation
+      paymentMethod: value
     }));
   };
 
@@ -69,8 +68,10 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
   };
 
   const getDeliveryCharge = () => {
-    if (formData.paymentMethod === "cod" && formData.deliveryLocation === "outside_dhaka") {
-      return 50;
+    if (formData.deliveryLocation === "inside_dhaka") {
+      return 80;
+    } else if (formData.deliveryLocation === "outside_dhaka") {
+      return 150;
     }
     return 0;
   };
@@ -153,51 +154,49 @@ export const ContactForm = ({ onSubmit, totalPrice }: ContactFormProps) => {
             onValueChange={handlePaymentMethodChange}
             className="space-y-3"
           >
-            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+            <Label htmlFor="online" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
               <RadioGroupItem value="online" id="online" />
-              <Label htmlFor="online" className="cursor-pointer flex-1 font-normal">
+              <span className="flex-1 font-normal">
                 Online Payment
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+              </span>
+            </Label>
+            <Label htmlFor="cod" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
               <RadioGroupItem value="cod" id="cod" />
-              <Label htmlFor="cod" className="cursor-pointer flex-1 font-normal">
+              <span className="flex-1 font-normal">
                 Cash on Delivery (COD)
-              </Label>
-            </div>
+              </span>
+            </Label>
           </RadioGroup>
         </div>
 
-        {/* Delivery Location - Only show if COD is selected */}
-        {formData.paymentMethod === "cod" && (
-          <div className="space-y-4 p-4 bg-accent/20 rounded-lg border border-accent">
-            <Label>Delivery Location *</Label>
-            <RadioGroup
-              value={formData.deliveryLocation}
-              onValueChange={handleDeliveryLocationChange}
-              className="space-y-3"
-            >
-              <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-3 flex-1">
-                  <RadioGroupItem value="inside_dhaka" id="inside_dhaka" />
-                  <Label htmlFor="inside_dhaka" className="cursor-pointer font-normal">
-                    Inside Dhaka
-                  </Label>
-                </div>
-                <span className="text-sm font-medium text-muted-foreground">Free</span>
+        {/* Delivery Location - Show for all payment methods */}
+        <div className="space-y-4 p-4 bg-accent/10 rounded-lg border border-accent">
+          <Label>Delivery Location *</Label>
+          <RadioGroup
+            value={formData.deliveryLocation}
+            onValueChange={handleDeliveryLocationChange}
+            className="space-y-3"
+          >
+            <Label htmlFor="inside_dhaka" className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
+              <div className="flex items-center space-x-3 flex-1">
+                <RadioGroupItem value="inside_dhaka" id="inside_dhaka" />
+                <span className="font-normal">
+                  Inside Dhaka
+                </span>
               </div>
-              <div className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-3 flex-1">
-                  <RadioGroupItem value="outside_dhaka" id="outside_dhaka" />
-                  <Label htmlFor="outside_dhaka" className="cursor-pointer font-normal">
-                    Outside Dhaka
-                  </Label>
-                </div>
-                <span className="text-sm font-medium text-primary">+50 tk</span>
+              <span className="text-sm font-medium text-primary">+80 tk</span>
+            </Label>
+            <Label htmlFor="outside_dhaka" className="flex items-center justify-between space-x-3 p-3 bg-white border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
+              <div className="flex items-center space-x-3 flex-1">
+                <RadioGroupItem value="outside_dhaka" id="outside_dhaka" />
+                <span className="font-normal">
+                  Outside Dhaka
+                </span>
               </div>
-            </RadioGroup>
-          </div>
-        )}
+              <span className="text-sm font-medium text-primary">+150 tk</span>
+            </Label>
+          </RadioGroup>
+        </div>
         
         <div className="border-t pt-4 mt-6">
           <div className="space-y-2 mb-4">
