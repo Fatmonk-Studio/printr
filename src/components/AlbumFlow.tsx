@@ -576,12 +576,12 @@ export const AlbumFlow = () => {
                           <p className="text-xs text-muted-foreground text-center mb-2">
                             Click to add
                           </p>
-                          <div className="flex flex-wrap gap-1 justify-center max-h-16 overflow-y-auto">
-                            {uploadedPhotos.slice(0, 4).map((photo, idx) => (
+                          <div className="flex flex-wrap gap-1 justify-center max-h-24 overflow-y-auto p-1">
+                            {uploadedPhotos.map((photo, idx) => (
                               <button
                                 key={idx}
                                 onClick={() => addImageToSlot(currentPageIndex, slotIndex, photo)}
-                                className="w-8 h-8 rounded border hover:border-primary"
+                                className="w-8 h-8 rounded border hover:border-primary flex-shrink-0"
                               >
                                 <img
                                   src={URL.createObjectURL(photo)}

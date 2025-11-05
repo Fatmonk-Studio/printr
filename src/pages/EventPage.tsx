@@ -102,17 +102,23 @@ const EventPage = () => {
         
         if (result.success && result.data.length > 0) {
           // Transform API data to our Gallery format
-          const transformedGalleries: Gallery[] = result.data[0].categories.map((category) => ({
-            id: `gallery-${category.id}`,
-            title: category.title,
-            description: category.description.split('\r\n')[0] || category.description, // Take first line as main description
-            date: category.description.split('\r\n\r\n')[1] || new Date(category.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            images: category.galleries.map((img, index) => ({
-              id: `img-${category.id}-${img.id}`,
-              url: `https://admin.printr.store/${img.image_url}`,
-              title: `${category.title} - Image ${index + 1}`,
-            })),
-          }));
+          const transformedGalleries: Gallery[] = result.data[0].categories.map((category) => {
+            const description = category.description || '';
+            const descriptionParts = description.split('\r\n');
+            const dateParts = description.split('\r\n\r\n');
+            
+            return {
+              id: `gallery-${category.id}`,
+              title: category.title,
+              description: descriptionParts[0] || description || 'Event Gallery',
+              date: dateParts[1] || new Date(category.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              images: category.galleries.map((img, index) => ({
+                id: `img-${category.id}-${img.id}`,
+                url: `https://admin.printr.store/${img.image_url}`,
+                title: `${category.title} - Image ${index + 1}`,
+              })),
+            };
+          });
           
           setGalleries(transformedGalleries);
         } else {
