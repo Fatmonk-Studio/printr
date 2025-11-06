@@ -217,39 +217,122 @@ export const AlbumFlow = () => {
     }
   };
 
+  // Function to create a combined canvas image for a page based on its layout
+  const createPageCanvas = async (page: AlbumPage, canvasWidth: number = 2400, canvasHeight: number = 2400): Promise<Blob | null> => {
+    try {
+      const layout = ALBUM_LAYOUTS.find(l => l.id === page.layoutId);
+      if (!layout) return null;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return null;
+
+      // Fill background with white
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      // Get the appropriate layout positions based on shape
+      const positions = shape === 'square' ? layout.square : layout.rectangle;
+
+      // Draw each image in its position
+      await Promise.all(
+        page.images.map(async (imageData, index) => {
+          if (!imageData || !positions[index]) return;
+
+          const position = positions[index];
+          const slotX = (position.x / 100) * canvasWidth;
+          const slotY = (position.y / 100) * canvasHeight;
+          const slotWidth = (position.width / 100) * canvasWidth;
+          const slotHeight = (position.height / 100) * canvasHeight;
+
+          return new Promise<void>((resolve) => {
+            const img = new Image();
+            const imageUrl = URL.createObjectURL(imageData.file);
+
+            img.onload = () => {
+              ctx.save();
+
+              // Clip to the slot area
+              ctx.beginPath();
+              ctx.rect(slotX, slotY, slotWidth, slotHeight);
+              ctx.clip();
+
+              // Apply transformations for zoom and position
+              ctx.translate(slotX + slotWidth / 2, slotY + slotHeight / 2);
+              ctx.scale(imageData.zoom, imageData.zoom);
+              ctx.translate(
+                imageData.position.x / imageData.zoom,
+                imageData.position.y / imageData.zoom
+              );
+
+              // Calculate image dimensions to cover the slot
+              const scale = Math.max(slotWidth / img.width, slotHeight / img.height);
+              const scaledWidth = img.width * scale;
+              const scaledHeight = img.height * scale;
+
+              ctx.drawImage(
+                img,
+                -scaledWidth / 2,
+                -scaledHeight / 2,
+                scaledWidth,
+                scaledHeight
+              );
+
+              ctx.restore();
+              URL.revokeObjectURL(imageUrl);
+              resolve();
+            };
+
+            img.onerror = () => {
+              URL.revokeObjectURL(imageUrl);
+              resolve();
+            };
+
+            img.src = imageUrl;
+          });
+        })
+      );
+
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg', 0.95);
+      });
+    } catch (error) {
+      console.error("Error creating page canvas:", error);
+      return null;
+    }
+  };
+
   const handleSubmitOrder = async (contactData: ContactFormData) => {
     try {
       toast.loading("Submitting your album order...");
 
-      // Create edited images for all pages
-      const processedPages = await Promise.all(
-        pages.map(async (page) => {
-          const pageBlobs = await Promise.all(
-            page.images.map(async (imageData) => {
-              if (!imageData) return null;
-              
-              const hasEdits = imageData.zoom !== 1 || imageData.position.x !== 0 || imageData.position.y !== 0;
-              
-              if (hasEdits) {
-                // Create edited version with zoom and position
-                return await createEditedImage(imageData, 800, 800);
-              } else {
-                // Use original file
-                return imageData.file;
-              }
-            })
-          );
-          
-          return pageBlobs.filter(blob => blob !== null);
-        })
-      );
-
-      // Filter out empty pages
-      const pagesWithContent = processedPages.filter(page => page.length > 0);
+      // Filter pages that have at least one image
+      const pagesWithContent = pages.filter(page => page.images.some(img => img !== null));
 
       if (pagesWithContent.length === 0) {
         toast.dismiss();
         toast.error('Please add at least one image to your album');
+        return;
+      }
+
+      // Create combined canvas images for each page
+      const processedPages = await Promise.all(
+        pagesWithContent.map(async (page) => {
+          return await createPageCanvas(page);
+        })
+      );
+
+      // Filter out any null results
+      const validPageBlobs = processedPages.filter(blob => blob !== null) as Blob[];
+
+      if (validPageBlobs.length === 0) {
+        toast.dismiss();
+        toast.error('Failed to process album pages. Please try again.');
         return;
       }
 
@@ -276,29 +359,20 @@ export const AlbumFlow = () => {
         formData.append('documents[0][album_custom_cover]', coverImage.name);
       }
 
-      formData.append('documents[0][no_of_pages]', pagesWithContent.length.toString());
+      formData.append('documents[0][no_of_pages]', validPageBlobs.length.toString());
       formData.append('documents[0][size_id]', '1'); // You may want to make this dynamic
       formData.append('documents[0][orientation]', shape);
       formData.append('documents[0][bleed_type]', 'none');
       formData.append('documents[0][print_type_id]', '1'); // You may want to make this dynamic
 
-      // Add all page files
-      let pageFileIndex = 0;
-      for (let pageIndex = 0; pageIndex < pagesWithContent.length; pageIndex++) {
-        const pageImages = pagesWithContent[pageIndex];
-        
-        for (let imageIndex = 0; imageIndex < pageImages.length; imageIndex++) {
-          const imageBlob = pageImages[imageIndex];
-          if (imageBlob) {
-            formData.append(
-              `documents[0][pages][${pageFileIndex}][file]`,
-              imageBlob instanceof File ? imageBlob : imageBlob,
-              imageBlob instanceof File ? imageBlob.name : `page_${pageIndex + 1}_img_${imageIndex + 1}.jpg`
-            );
-            pageFileIndex++;
-          }
-        }
-      }
+      // Add one combined image per page
+      validPageBlobs.forEach((pageBlob, pageIndex) => {
+        formData.append(
+          `documents[0][pages][${pageIndex}][file]`,
+          pageBlob,
+          `page_${pageIndex + 1}.jpg`
+        );
+      });
 
       const response = await fetch('https://admin.printr.store/api/service/submit', {
         method: 'POST',
