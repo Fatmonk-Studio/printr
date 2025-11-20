@@ -14,8 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Check, X, ImageIcon } from "lucide-react";
+import { Download, Check, X, ImageIcon, Loader2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { LazyImage } from "@/components/LazyImage";
 
 interface UserInfo {
   name: string;
@@ -38,27 +39,14 @@ interface Gallery {
   images: GalleryImage[];
 }
 
-// API Response interfaces
-interface ApiGalleryImage {
-  id: number;
-  event_id: string;
-  event_category_id: string;
-  image_url: string;
-  status: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
+// API Response interfaces for /event/list
 interface ApiCategory {
   id: number;
   event_id: string;
   title: string;
   status: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  galleries: ApiGalleryImage[];
+  description: string | null;
+  position: string;
 }
 
 interface ApiEvent {
@@ -66,20 +54,78 @@ interface ApiEvent {
   title: string;
   status: string;
   description: string;
-  created_at: string;
-  updated_at: string;
   categories: ApiCategory[];
 }
 
-interface ApiResponse {
+interface EventListResponse {
   success: boolean;
   data: ApiEvent[];
   message: string;
   code: number;
 }
 
+// API Response interfaces for /category/{id}/galleries
+interface ApiGalleryImage {
+  id: number;
+  event_id: string;
+  event_category_id: string;
+  image_url: string;
+  status: string;
+}
+
+interface PaginationLink {
+  url: string | null;
+  label: string;
+  active: boolean;
+}
+
+interface PaginatedGalleriesData {
+  current_page: number;
+  data: ApiGalleryImage[];
+  first_page_url: string;
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  links: PaginationLink[];
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
+}
+
+interface GalleriesResponse {
+  success: boolean;
+  data: PaginatedGalleriesData;
+  message: string;
+  code: number;
+}
+
+interface GalleryWithPagination extends Gallery {
+  categoryId: number;
+  isLoaded: boolean; // Track if images have been fetched
+  isLoading: boolean; // Track if currently loading
+  allImages: GalleryImage[]; // Store all loaded images
+  visibleStartIndex: number; // Index of first visible image
+  visibleEndIndex: number; // Index of last visible image
+  pagination: {
+    currentPage: number;
+    lastPage: number;
+    total: number;
+    nextPageUrl: string | null;
+    prevPageUrl: string | null;
+  };
+}
+
+// Constants for virtualization
+const IMAGES_PER_LOAD = 20; // Images loaded per API call
+const MAX_VISIBLE_IMAGES = 18; // Maximum images rendered in DOM
+const BUFFER_IMAGES = 6; // Buffer before/after visible area
+
 const EventPage = () => {
-  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [eventInfo, setEventInfo] = useState<{ title: string; description: string } | null>(null);
+  const [galleries, setGalleries] = useState<GalleryWithPagination[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -92,48 +138,212 @@ const EventPage = () => {
   });
   const [formErrors, setFormErrors] = useState<Partial<UserInfo>>({});
 
-  // Fetch galleries from API
+  // Fetch event and categories list
   useEffect(() => {
-    const fetchGalleries = async () => {
+    const fetchEventList = async () => {
       try {
         setIsLoading(true);
         const response = await fetch('https://admin.printr.store/api/event/list');
-        const result: ApiResponse = await response.json();
+        const result: EventListResponse = await response.json();
         
         if (result.success && result.data.length > 0) {
-          // Transform API data to our Gallery format
-          const transformedGalleries: Gallery[] = result.data[0].categories.map((category) => {
-            const description = category.description || '';
-            const descriptionParts = description.split('\r\n');
-            const dateParts = description.split('\r\n\r\n');
-            
-            return {
-              id: `gallery-${category.id}`,
-              title: category.title,
-              description: descriptionParts[0] || description || 'Event Gallery',
-              date: dateParts[1] || new Date(category.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              images: category.galleries.map((img, index) => ({
-                id: `img-${category.id}-${img.id}`,
-                url: `https://admin.printr.store/${img.image_url}`,
-                title: `${category.title} - Image ${index + 1}`,
-              })),
-            };
-          });
+          const event = result.data[0];
           
-          setGalleries(transformedGalleries);
+          // Store event info
+          setEventInfo({
+            title: event.title,
+            description: event.description,
+          });
+
+          // Initialize galleries with empty images (will be loaded on demand)
+          const initialGalleries: GalleryWithPagination[] = event.categories.map((category) => ({
+            id: `gallery-${category.id}`,
+            categoryId: category.id,
+            title: category.title,
+            description: category.description || 'Event Gallery',
+            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            images: [], // Currently visible images
+            allImages: [], // All loaded images stored here
+            isLoaded: false,
+            isLoading: false,
+            visibleStartIndex: 0,
+            visibleEndIndex: MAX_VISIBLE_IMAGES,
+            pagination: {
+              currentPage: 0,
+              lastPage: 1,
+              total: 0,
+              nextPageUrl: `https://admin.printr.store/api/category/${category.id}/galleries?page=1`,
+              prevPageUrl: null,
+            }
+          }));
+          
+          setGalleries(initialGalleries);
         } else {
-          toast.error('Failed to load galleries');
+          toast.error('Failed to load event information');
         }
       } catch (error) {
-        console.error('Error fetching galleries:', error);
-        toast.error('Failed to load galleries. Please try again later.');
+        console.error('Error fetching event list:', error);
+        toast.error('Failed to load event information. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchGalleries();
+    fetchEventList();
   }, []);
+
+  // Load images for a specific gallery (initial load or load more)
+  const loadGalleryImages = async (galleryId: string, categoryId: number, pageUrl: string) => {
+    try {
+      // Set loading state
+      setGalleries(prev => prev.map(gallery => 
+        gallery.id === galleryId 
+          ? { ...gallery, isLoading: true }
+          : gallery
+      ));
+      
+      const response = await fetch(pageUrl);
+      const result: GalleriesResponse = await response.json();
+      
+      if (result.success && result.data) {
+        const galleriesData = result.data;
+        
+        setGalleries(prev => prev.map(gallery => {
+          if (gallery.id === galleryId) {
+            // Transform new images
+            const newImages = galleriesData.data.map((img, index) => ({
+              id: `img-${categoryId}-${img.id}`,
+              url: `https://admin.printr.store/${img.image_url}`,
+              title: `${gallery.title} - Image ${gallery.allImages.length + index + 1}`,
+            }));
+            
+            // Append to allImages array (keep all loaded images in memory)
+            const updatedAllImages = gallery.isLoaded 
+              ? [...gallery.allImages, ...newImages]
+              : newImages;
+            
+            // Calculate visible window - show only MAX_VISIBLE_IMAGES
+            const visibleStart = Math.max(0, updatedAllImages.length - MAX_VISIBLE_IMAGES);
+            const visibleEnd = updatedAllImages.length;
+            const visibleImages = updatedAllImages.slice(visibleStart, visibleEnd);
+            
+            return {
+              ...gallery,
+              allImages: updatedAllImages,
+              images: visibleImages, // Only render these images
+              visibleStartIndex: visibleStart,
+              visibleEndIndex: visibleEnd,
+              isLoaded: true,
+              isLoading: false,
+              pagination: {
+                currentPage: galleriesData.current_page,
+                lastPage: galleriesData.last_page,
+                total: galleriesData.total,
+                nextPageUrl: galleriesData.next_page_url,
+                prevPageUrl: galleriesData.prev_page_url,
+              }
+            };
+          }
+          return gallery;
+        }));
+        
+        if (galleriesData.current_page === 1) {
+          toast.success('Gallery loaded successfully!');
+        } else {
+          toast.success(`Loaded ${galleriesData.data.length} more images! Showing latest ${MAX_VISIBLE_IMAGES}.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading gallery images:', error);
+      toast.error('Failed to load images');
+      
+      // Reset loading state on error
+      setGalleries(prev => prev.map(gallery => 
+        gallery.id === galleryId 
+          ? { ...gallery, isLoading: false }
+          : gallery
+      ));
+    }
+  };
+
+  // Use Intersection Observer to auto-load galleries when they come into view
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const galleryId = entry.target.getAttribute('data-gallery-id');
+            const categoryId = entry.target.getAttribute('data-category-id');
+            const nextPageUrl = entry.target.getAttribute('data-next-page-url');
+            
+            if (galleryId && categoryId && nextPageUrl) {
+              const gallery = galleries.find(g => g.id === galleryId);
+              
+              // Only load if not already loaded and not currently loading
+              if (gallery && !gallery.isLoaded && !gallery.isLoading) {
+                loadGalleryImages(galleryId, parseInt(categoryId), nextPageUrl);
+              }
+            }
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '200px', // Start loading 200px before the gallery enters viewport
+        threshold: 0.1,
+      }
+    );
+
+    // Observe all gallery sections
+    const galleryElements = document.querySelectorAll('[data-gallery-observer]');
+    galleryElements.forEach((el) => observer.observe(el));
+
+    return () => {
+      galleryElements.forEach((el) => observer.unobserve(el));
+    };
+  }, [galleries]);
+
+  // Show previous images (scroll back in virtual window)
+  const showPreviousImages = (galleryId: string) => {
+    setGalleries(prev => prev.map(gallery => {
+      if (gallery.id === galleryId && gallery.visibleStartIndex > 0) {
+        const newStart = Math.max(0, gallery.visibleStartIndex - MAX_VISIBLE_IMAGES);
+        const newEnd = newStart + MAX_VISIBLE_IMAGES;
+        const visibleImages = gallery.allImages.slice(newStart, newEnd);
+        
+        return {
+          ...gallery,
+          images: visibleImages,
+          visibleStartIndex: newStart,
+          visibleEndIndex: newEnd,
+        };
+      }
+      return gallery;
+    }));
+    
+    toast.success('Showing previous images');
+  };
+
+  // Show next images (scroll forward in virtual window)
+  const showNextImages = (galleryId: string) => {
+    setGalleries(prev => prev.map(gallery => {
+      if (gallery.id === galleryId && gallery.visibleEndIndex < gallery.allImages.length) {
+        const newStart = gallery.visibleEndIndex;
+        const newEnd = Math.min(gallery.allImages.length, newStart + MAX_VISIBLE_IMAGES);
+        const visibleImages = gallery.allImages.slice(newStart, newEnd);
+        
+        return {
+          ...gallery,
+          images: visibleImages,
+          visibleStartIndex: newStart,
+          visibleEndIndex: newEnd,
+        };
+      }
+      return gallery;
+    }));
+    
+    toast.success('Showing next images');
+  };
 
   const toggleImageSelection = (imageId: string) => {
     setSelectedImages((prev) => {
@@ -153,10 +363,11 @@ const EventPage = () => {
 
     setSelectedImages((prev) => {
       const newSet = new Set(prev);
-      gallery.images.forEach((img) => newSet.add(img.id));
+      // Select all loaded images, not just visible ones
+      gallery.allImages.forEach((img) => newSet.add(img.id));
       return newSet;
     });
-    toast.success(`Selected all ${gallery.images.length} images from ${gallery.title}`);
+    toast.success(`Selected all ${gallery.allImages.length} loaded images from ${gallery.title}`);
   };
 
   const deselectAllInGallery = (galleryId: string) => {
@@ -165,7 +376,8 @@ const EventPage = () => {
 
     setSelectedImages((prev) => {
       const newSet = new Set(prev);
-      gallery.images.forEach((img) => newSet.delete(img.id));
+      // Deselect all loaded images
+      gallery.allImages.forEach((img) => newSet.delete(img.id));
       return newSet;
     });
     toast.success(`Deselected all images from ${gallery.title}`);
@@ -242,22 +454,55 @@ const EventPage = () => {
 
   const performSingleDownload = async (image: GalleryImage) => {
     try {
-      // Create a temporary link element and trigger download directly
-      const link = document.createElement("a");
-      link.href = image.url;
-      link.download = `${image.title.replace(/\s+/g, "_")}.jpg`;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      
-      // For same-origin or CORS-enabled resources
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast.success(`Downloading: ${image.title}`);
+      // Try to fetch the image as a blob first (works for CORS-enabled images)
+      try {
+        const response = await fetch(image.url, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch image');
+        }
+        
+        const blob = await response.blob();
+        
+        // Create a blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Create a temporary link element and trigger download
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = `${image.title.replace(/\s+/g, "_")}.jpg`;
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the blob URL after a short delay
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 100);
+        
+        toast.success(`Downloading: ${image.title}`);
+      } catch (fetchError) {
+        // Fallback: Open image in new tab if blob fetch fails
+        console.log("Blob fetch failed, using fallback:", fetchError);
+        const link = document.createElement("a");
+        link.href = image.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Opening: ${image.title} (Right-click to save)`);
+      }
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Failed to download image");
+      toast.error("Failed to download image. Please try again.");
     }
   };
 
@@ -319,17 +564,16 @@ const EventPage = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
-              Event Gallery
+              {eventInfo?.title || 'Event Gallery'}
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground mb-8">
-              Browse through our collection of memorable moments. Download individual photos or select
-              multiple images to save your favorites.
+              {eventInfo?.description || 'Browse through our collection of memorable moments.'}
             </p>
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
                 <ImageIcon className="w-5 h-5 text-primary" />
                 <span className="text-sm font-medium">
-                  {galleries.reduce((sum, g) => sum + g.images.length, 0)} Total Photos
+                  {galleries.reduce((sum, g) => sum + g.pagination.total, 0)} Total Photos
                 </span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
@@ -386,13 +630,21 @@ const EventPage = () => {
           ) : (
             <div className="space-y-16">
               {galleries.map((gallery) => {
-                const selectedInGallery = gallery.images.filter((img) =>
+                // Check selections against all loaded images
+                const selectedInGallery = gallery.allImages.filter((img) =>
                   selectedImages.has(img.id)
                 ).length;
-                const allSelected = selectedInGallery === gallery.images.length;
+                const allSelected = gallery.allImages.length > 0 && selectedInGallery === gallery.allImages.length;
 
               return (
-                <div key={gallery.id} className="space-y-6">
+                <div 
+                  key={gallery.id} 
+                  className="space-y-6"
+                  data-gallery-observer
+                  data-gallery-id={gallery.id}
+                  data-category-id={gallery.categoryId}
+                  data-next-page-url={gallery.pagination.nextPageUrl || ''}
+                >
                   {/* Gallery Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b">
                     <div>
@@ -400,49 +652,64 @@ const EventPage = () => {
                       <p className="text-muted-foreground mb-1">{gallery.description}</p>
                       <p className="text-sm text-muted-foreground">{gallery.date}</p>
                     </div>
-                    <div className="flex gap-2">
-                      {allSelected ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deselectAllInGallery(gallery.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <X className="w-4 h-4" />
-                          Deselect All
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => selectAllInGallery(gallery.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <Check className="w-4 h-4" />
-                          Select All ({gallery.images.length})
-                        </Button>
-                      )}
-                    </div>
+                    {gallery.allImages.length > 0 && (
+                      <div className="flex gap-2">
+                        {allSelected ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deselectAllInGallery(gallery.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Deselect All
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => selectAllInGallery(gallery.id)}
+                            className="flex items-center gap-2"
+                            disabled={gallery.allImages.length === 0}
+                          >
+                            <Check className="w-4 h-4" />
+                            Select All Loaded ({gallery.allImages.length})
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Gallery Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {gallery.images.map((image) => {
-                      const isSelected = selectedImages.has(image.id);
+                  {/* Loading State for Initial Gallery Load */}
+                  {gallery.isLoading && gallery.images.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                      <p className="text-muted-foreground">Loading images...</p>
+                    </div>
+                  ) : gallery.images.length === 0 && gallery.isLoaded ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <ImageIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No images in this gallery</p>
+                    </div>
+                  ) : gallery.images.length > 0 ? (
+                    <>
+                      {/* Gallery Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {gallery.images.map((image) => {
+                          const isSelected = selectedImages.has(image.id);
 
-                      return (
-                        <Card
-                          key={image.id}
-                          className={`group relative overflow-hidden transition-all hover:shadow-xl ${
-                            isSelected ? "ring-2 ring-primary shadow-lg" : ""
-                          }`}
-                        >
+                          return (
+                            <Card
+                              key={image.id}
+                              className={`group relative overflow-hidden transition-all hover:shadow-xl ${
+                                isSelected ? "ring-2 ring-primary shadow-lg" : ""
+                              }`}
+                            >
                           <div className="aspect-[4/3] relative overflow-hidden bg-muted">
-                            <img
+                            <LazyImage
                               src={image.url}
                               alt={image.title}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                              loading="lazy"
+                              className="transition-transform duration-300 group-hover:scale-110"
                             />
 
                             {/* Overlay */}
@@ -485,17 +752,86 @@ const EventPage = () => {
                           {/* <div className="p-4">
                             <h3 className="font-medium text-sm truncate">{image.title}</h3>
                           </div> */}
-                        </Card>
-                      );
-                    })}
-                  </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
 
-                  {/* Gallery Footer */}
-                  {selectedInGallery > 0 && (
-                    <div className="text-sm text-muted-foreground text-center">
-                      {selectedInGallery} of {gallery.images.length} images selected from this gallery
-                    </div>
-                  )}
+                      {/* Virtual Window Navigation & Pagination */}
+                      <div className="flex flex-col items-center gap-4 pt-4">
+                        {/* Window Info - showing current visible range */}
+                        {gallery.allImages.length > 0 && (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="text-sm text-muted-foreground text-center">
+                              <span className="font-semibold">Viewing images {gallery.visibleStartIndex + 1}-{gallery.visibleEndIndex}</span>
+                              {gallery.pagination.total > gallery.allImages.length && (
+                                <span> ({gallery.pagination.total} total available)</span>
+                              )}
+                            </div>
+                            {/* <div className="text-xs text-muted-foreground">
+                              Showing {MAX_VISIBLE_IMAGES} images at a time for optimal performance
+                            </div> */}
+                          </div>
+                        )}
+
+                        {/* Navigation Controls - Navigate through loaded images */}
+                        {gallery.allImages.length > MAX_VISIBLE_IMAGES && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => showPreviousImages(gallery.id)}
+                              disabled={gallery.visibleStartIndex === 0}
+                              className="flex items-center gap-2"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                              Previous {MAX_VISIBLE_IMAGES}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => showNextImages(gallery.id)}
+                              disabled={gallery.visibleEndIndex >= gallery.allImages.length}
+                              className="flex items-center gap-2"
+                            >
+                              Next {MAX_VISIBLE_IMAGES}
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Load More Button - Fetch more from API */}
+                        {gallery.pagination.nextPageUrl && (
+                          <Button
+                            variant="default"
+                            size="lg"
+                            onClick={() => loadGalleryImages(gallery.id, gallery.categoryId, gallery.pagination.nextPageUrl!)}
+                            disabled={gallery.isLoading}
+                            className="min-w-[200px]"
+                          >
+                            {gallery.isLoading ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                Load {IMAGES_PER_LOAD} More
+                                <ChevronDown className="w-4 h-4" />
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Gallery Footer */}
+                      {selectedInGallery > 0 && (
+                        <div className="text-sm text-muted-foreground text-center pt-4">
+                          {selectedInGallery} of {gallery.allImages.length} loaded images selected from this gallery
+                        </div>
+                      )}
+                    </>
+                  ) : null}
                 </div>
               );
             })}

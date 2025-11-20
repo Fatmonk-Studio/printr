@@ -484,23 +484,23 @@ export const CollageFlow = () => {
     setIsDownloading(true);
     
     try {
-      if (collageRef.current) {
-        const canvas = await html2canvas(collageRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-        });
-
+      const blob = await createCollageCanvas();
+      
+      if (blob) {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.download = `collage-${images.length}-photos-${Date.now()}.png`;
-        link.href = canvas.toDataURL("image/png", 1.0);
+        link.download = `collage-${images.length}-photos-${Date.now()}.jpg`;
+        link.href = url;
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
+        URL.revokeObjectURL(url);
+        
         toast.success("Collage downloaded successfully!");
+      } else {
+        toast.error("Download failed. Please try again.");
       }
     } catch (error) {
       console.error("Error downloading collage:", error);
@@ -577,24 +577,133 @@ export const CollageFlow = () => {
     return 0;
   };
 
+  // Function to create a proper canvas that matches the preview exactly
+  const createCollageCanvas = async (): Promise<Blob | null> => {
+    try {
+      if (!collageRef.current) return null;
+
+      // Get the actual displayed dimensions of the collage container
+      const collageElement = collageRef.current;
+      const rect = collageElement.getBoundingClientRect();
+      
+      // Create canvas at high resolution (3x for better quality)
+      const scaleFactor = 3;
+      const canvas = document.createElement('canvas');
+      canvas.width = rect.width * scaleFactor;
+      canvas.height = rect.height * scaleFactor;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return null;
+
+      // Fill with white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Get all image elements from the collage
+      const imageElements = collageElement.querySelectorAll('img');
+      const layout = getCollageLayout(images.length, selectedShape);
+
+      // Process each image
+      await Promise.all(
+        Array.from(imageElements).map(async (imgElement, index) => {
+          return new Promise<void>((resolve) => {
+            const imageContainer = imgElement.closest('[class*="col-span"]') as HTMLElement;
+            if (!imageContainer) {
+              resolve();
+              return;
+            }
+
+            // Get the container's position and size relative to the collage
+            const containerRect = imageContainer.getBoundingClientRect();
+            const collageRect = collageElement.getBoundingClientRect();
+            
+            const x = (containerRect.left - collageRect.left) * scaleFactor;
+            const y = (containerRect.top - collageRect.top) * scaleFactor;
+            const width = containerRect.width * scaleFactor;
+            const height = containerRect.height * scaleFactor;
+
+            // Get transform data for this image
+            const imageId = images[index];
+            const transform = imageTransforms.get(imageId) || { scale: 1, position: { x: 0, y: 0 } };
+
+            // Create a new image object to draw
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+              ctx.save();
+              
+              // Clip to container bounds
+              ctx.beginPath();
+              ctx.rect(x, y, width, height);
+              ctx.clip();
+
+              // Move to container center
+              ctx.translate(x + width / 2, y + height / 2);
+              
+              // Apply user's transformations
+              ctx.translate(transform.position.x * scaleFactor, transform.position.y * scaleFactor);
+              ctx.scale(transform.scale, transform.scale);
+
+              // Calculate image dimensions to cover the container
+              const imgAspect = img.naturalWidth / img.naturalHeight;
+              const containerAspect = width / height;
+              
+              let drawWidth, drawHeight;
+              if (imgAspect > containerAspect) {
+                // Image is wider - fit to height
+                drawHeight = height / transform.scale;
+                drawWidth = drawHeight * imgAspect;
+              } else {
+                // Image is taller - fit to width
+                drawWidth = width / transform.scale;
+                drawHeight = drawWidth / imgAspect;
+              }
+
+              // Draw image centered
+              ctx.drawImage(
+                img,
+                -drawWidth / 2,
+                -drawHeight / 2,
+                drawWidth,
+                drawHeight
+              );
+
+              ctx.restore();
+              resolve();
+            };
+
+            img.onerror = () => {
+              console.error(`Failed to load image ${index}`);
+              resolve();
+            };
+
+            img.src = imgElement.src;
+          });
+        })
+      );
+
+      // Convert canvas to blob
+      return new Promise((resolve) => {
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob);
+          },
+          'image/jpeg',
+          0.95
+        );
+      });
+    } catch (error) {
+      console.error("Error creating collage canvas:", error);
+      return null;
+    }
+  };
+
   // Function to capture edited collage as image
   const captureEditedCollage = async (): Promise<Blob | null> => {
     try {
-      if (collageRef.current) {
-        const canvas = await html2canvas(collageRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-        });
-
-        return new Promise((resolve) => {
-          canvas.toBlob((blob) => {
-            resolve(blob);
-          }, 'image/jpeg', 0.95);
-        });
-      }
-      return null;
+      // Use our custom canvas creation instead of html2canvas
+      return await createCollageCanvas();
     } catch (error) {
       console.error("Error capturing edited collage:", error);
       return null;

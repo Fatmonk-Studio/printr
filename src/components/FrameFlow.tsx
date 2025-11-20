@@ -292,10 +292,35 @@ export const FrameFlow = () => {
     return extraLargePrice + 200;
   };
 
+  const getFramePrice = (sizeName: string): number => {
+    // 4R to 12R: 1500 tk
+    // 12L to 20L: 3000 tk
+    const smallSizes = ['4R', '8L', '10R', '12R'];
+    const largeSizes = ['12L', '20R', '20L'];
+    
+    if (smallSizes.includes(sizeName)) {
+      return 1500;
+    } else if (largeSizes.includes(sizeName)) {
+      return 3000;
+    }
+    
+    // Default for Extra Large or unknown sizes
+    return 3000;
+  };
+
   const getTotalPrice = () => {
     return photos.reduce((total, photo) => {
-      const frame = getFrameById(photo.frameId);
-      const framePrice = frame ? 150 : 0;
+      let sizeName = '';
+      
+      if (photo.useCustomSize) {
+        // For custom sizes, use 12L pricing as default
+        sizeName = '12L';
+      } else {
+        const size = getSizeById(photo.sizeId);
+        sizeName = size?.name || '12R';
+      }
+      
+      const framePrice = getFramePrice(sizeName);
       
       let sizePrice = 0;
       if (photo.useCustomSize) {
@@ -485,8 +510,16 @@ export const FrameFlow = () => {
           <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Your Framed Photos ({photos.length})</h3>
           <div className="space-y-2">
             {photos.map((photo) => {
-              const frame = getFrameById(photo.frameId);
-              const framePrice = frame ? 150 : 0;
+              let sizeName = '';
+              
+              if (photo.useCustomSize) {
+                sizeName = '12L'; // Default to 12L pricing for custom sizes
+              } else {
+                const size = getSizeById(photo.sizeId);
+                sizeName = size?.name || '12R';
+              }
+              
+              const framePrice = getFramePrice(sizeName);
               
               let sizePrice = 0;
               let sizeDisplay = '';
@@ -504,7 +537,7 @@ export const FrameFlow = () => {
                 <div key={photo.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 p-3 bg-muted rounded-lg">
                   <div className="flex-1">
                     <p className="text-xs sm:text-sm font-medium truncate">{photo.file.name}</p>
-                    <p className="text-xs text-muted-foreground">{frame?.name || 'Unknown'} Frame - {sizeDisplay}</p>
+                    <p className="text-xs text-muted-foreground">{getFrameById(photo.frameId)?.name || 'Unknown'} Frame ({sizeName}) - {sizeDisplay}</p>
                   </div>
                   <span className="text-sm font-medium whitespace-nowrap">
                     {(sizePrice + framePrice).toFixed(0)} tk
@@ -724,21 +757,33 @@ export const FrameFlow = () => {
                       <p className="text-sm text-muted-foreground">Loading frames...</p>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {frames.map((frame) => (
-                          <button
-                            key={frame.id}
-                            onClick={() => updatePhoto(photo.id, { frameId: frame.id })}
-                            className={`p-2 border rounded-lg text-xs sm:text-sm transition-colors ${
-                              photo.frameId === frame.id 
-                                ? 'border-primary bg-primary/10' 
-                                : 'border-border hover:border-primary/50'
-                            }`}
-                          >
-                            <img src={frame.image} alt={frame.name} className="w-full h-8 sm:h-12 object-contain mb-1 rounded bg-gray-50" />
-                            <p className="font-medium truncate">{frame.name}</p>
-                            <p className="text-xs text-muted-foreground">+150 tk</p>
-                          </button>
-                        ))}
+                        {frames.map((frame) => {
+                          // Calculate frame price based on current size
+                          let currentSizeName = '';
+                          if (photo.useCustomSize) {
+                            currentSizeName = '12L';
+                          } else {
+                            const size = getSizeById(photo.sizeId);
+                            currentSizeName = size?.name || '12R';
+                          }
+                          const currentFramePrice = getFramePrice(currentSizeName);
+                          
+                          return (
+                            <button
+                              key={frame.id}
+                              onClick={() => updatePhoto(photo.id, { frameId: frame.id })}
+                              className={`p-2 border rounded-lg text-xs sm:text-sm transition-colors ${
+                                photo.frameId === frame.id 
+                                  ? 'border-primary bg-primary/10' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <img src={frame.image} alt={frame.name} className="w-full h-8 sm:h-12 object-contain mb-1 rounded bg-gray-50" />
+                              <p className="font-medium truncate">{frame.name}</p>
+                              <p className="text-xs text-muted-foreground">+{currentFramePrice} tk</p>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -891,27 +936,32 @@ export const FrameFlow = () => {
                     {(() => {
                       let sizePrice = 0;
                       let sizeInfo = '';
+                      let sizeName = '';
                       
                       if (photo.useCustomSize && photo.customSize) {
                         sizePrice = getCustomSizePrice();
+                        sizeName = '12L'; // Custom sizes use 12L frame pricing
                         const extraLargePrice = getExtraLargePrice();
                         sizeInfo = `Custom: ${photo.customSize.width}" x ${photo.customSize.height}" (Extra Large: ${extraLargePrice.toFixed(0)} + 200)`;
                       } else {
                         const size = getSizeById(photo.sizeId);
                         sizePrice = size ? parseFloat(size.price) : 0;
+                        sizeName = size?.name || '12R';
                         sizeInfo = `Print: ${sizePrice.toFixed(0)} tk`;
                       }
+                      
+                      const framePrice = getFramePrice(sizeName);
                       
                       return (
                         <>
                           <div>
                             <span className="font-medium text-sm sm:text-base">Price for this framed photo:</span>
                             <p className="text-xs sm:text-sm text-muted-foreground">
-                              {sizeInfo} + Frame: 150 tk
+                              {sizeInfo} + Frame ({sizeName}): {framePrice} tk
                             </p>
                           </div>
                           <span className="text-lg sm:text-xl font-bold text-primary">
-                            {(sizePrice + 150).toFixed(0)} tk
+                            {(sizePrice + framePrice).toFixed(0)} tk
                           </span>
                         </>
                       );
