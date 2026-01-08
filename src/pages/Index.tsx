@@ -17,8 +17,20 @@ import { HowItWorks } from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import CallToAction from "@/components/CallToAction";
 import { PlannerFlow } from "@/components/PlannerFlow";
+import MugFlow from "@/components/MugFlow";
+import TshirtFlow from "@/components/TshirtFlow";
+import TotebagFlow from "@/components/TotebagFlow";
 
-type ProductFlow = "home" | "print" | "frame" | "collage" | "album" | "planner";
+type ProductFlow =
+  | "home"
+  | "print"
+  | "frame"
+  | "collage"
+  | "album"
+  | "planner"
+  | "mug"
+  | "tshirt"
+  | "bag";
 
 const Index = () => {
   const [currentFlow, setCurrentFlow] = useState<ProductFlow>("home");
@@ -27,25 +39,29 @@ const Index = () => {
     {
       id: "print",
       title: "Print Photo",
-      description: "High-quality photo prints in various formats and sizes. Perfect for preserving your precious memories.",
+      description:
+        "High-quality photo prints in various formats and sizes. Perfect for preserving your precious memories.",
       icon: Image,
     },
     {
       id: "frame",
       title: "Frame",
-      description: "Beautiful framed prints with a selection of elegant frames to match any decor.",
+      description:
+        "Beautiful framed prints with a selection of elegant frames to match any decor.",
       icon: Frame,
     },
     {
       id: "collage",
       title: "Collage",
-      description: "Create stunning photo collages with multiple layout options for up to 10 photos.",
+      description:
+        "Create stunning photo collages with multiple layout options for up to 10 photos.",
       icon: Grid3X3,
     },
     {
       id: "album",
       title: "Album",
-      description: "Premium photo albums with customizable layouts and professional binding.",
+      description:
+        "Premium photo albums with customizable layouts and professional binding.",
       icon: BookOpen,
     },
   ];
@@ -94,6 +110,30 @@ const Index = () => {
     return (
       <ProductFlowLayout title="Planner" onBack={handleBackToHome}>
         <PlannerFlow />
+      </ProductFlowLayout>
+    );
+  }
+
+  if (currentFlow === "mug") {
+    return (
+      <ProductFlowLayout title="Mug" onBack={handleBackToHome}>
+        <MugFlow />
+      </ProductFlowLayout>
+    );
+  }
+
+  if (currentFlow === "tshirt") {
+    return (
+      <ProductFlowLayout title="T-Shirt" onBack={handleBackToHome}>
+        <TshirtFlow />
+      </ProductFlowLayout>
+    );
+  }
+
+  if (currentFlow === "bag") {
+    return (
+      <ProductFlowLayout title="Tote Bag" onBack={handleBackToHome}>
+        <TotebagFlow />
       </ProductFlowLayout>
     );
   }
