@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import { Navigation } from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Check, X, ImageIcon, Loader2, ArrowLeft, ChevronRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Download,
+  Check,
+  X,
+  ImageIcon,
+  Loader2,
+  ArrowLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { LazyImage } from "@/components/LazyImage";
 import { Badge } from "@/components/ui/badge";
@@ -104,10 +115,9 @@ const MAX_CONCURRENT_LOADS = 3;
 
 // Define types for virtual items
 type VirtualItem =
-  | { type: 'header'; category: Category }
-  | { type: 'image-row'; categoryId: number; items: GalleryImage[] }
-  | { type: 'empty'; categoryId: number }
-  | { type: 'load-more'; category: Category };
+  | { type: "image-row"; items: GalleryImage[] }
+  | { type: "empty" }
+  | { type: "loading" };
 
 const EventGalleryPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -115,13 +125,19 @@ const EventGalleryPage = () => {
   const { width } = useWindowSize();
   const hasAutoLoaded = useRef(false);
 
-  const [eventInfo, setEventInfo] = useState<{ title: string; description: string | null } | null>(null);
+  const [eventInfo, setEventInfo] = useState<{
+    title: string;
+    description: string | null;
+  } | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [showUserInfoDialog, setShowUserInfoDialog] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<GalleryImage | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<GalleryImage | null>(
+    null
+  );
   const [userInfo, setUserInfo] = useState<UserInfo>({
     name: "",
     email: "",
@@ -135,15 +151,17 @@ const EventGalleryPage = () => {
     const fetchEvent = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('https://admin.printr.store/api/event/list');
+        const response = await fetch(
+          "https://admin.printr.store/api/event/list"
+        );
         const result: EventListResponse = await response.json();
 
         if (result.success && result.data.length > 0) {
-          const event = result.data.find(e => e.id.toString() === eventId);
+          const event = result.data.find((e) => e.id.toString() === eventId);
 
           if (!event) {
-            toast.error('Event not found');
-            navigate('/events');
+            toast.error("Event not found");
+            navigate("/events");
             return;
           }
 
@@ -152,8 +170,8 @@ const EventGalleryPage = () => {
             description: event.description,
           });
 
-          const transformedCategories: Category[] = event.categories
-            .map((cat) => ({
+          const transformedCategories: Category[] = event.categories.map(
+            (cat) => ({
               id: cat.id,
               title: cat.title,
               description: cat.description,
@@ -162,18 +180,22 @@ const EventGalleryPage = () => {
               currentPage: 0,
               totalPages: 1,
               totalImages: 0,
-              nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=5`,
-            }));
+              nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=20`,
+            })
+          );
 
           setCategories(transformedCategories);
+          if (transformedCategories.length > 0 && !activeTabId) {
+            setActiveTabId(transformedCategories[0].id.toString());
+          }
         } else {
-          toast.error('Failed to load event');
-          navigate('/events');
+          toast.error("Failed to load event");
+          navigate("/events");
         }
       } catch (error) {
-        console.error('Error fetching event:', error);
-        toast.error('Failed to load event');
-        navigate('/events');
+        console.error("Error fetching event:", error);
+        toast.error("Failed to load event");
+        navigate("/events");
       } finally {
         setIsLoading(false);
       }
@@ -182,43 +204,77 @@ const EventGalleryPage = () => {
     fetchEvent();
   }, [eventId, navigate]);
 
-  // Auto-load all categories sequentially (waterfall)
-  useEffect(() => {
-    // If we maximize concurrent loads, stop and wait for one to finish
-    if (activeLoads.size >= MAX_CONCURRENT_LOADS) return;
+  const handleTabChange = (newTabId: string) => {
+    setActiveTabId(newTabId);
 
-    // Find the next category that needs initial loading
-    const candidate = categories.find(c =>
-      c.images.length === 0 &&
-      !c.isLoading &&
-      c.nextPageUrl
+    const categoryId = parseInt(newTabId);
+
+    // Clear images for other categories to save memory
+    setCategories((prev) =>
+      prev.map((cat) => {
+        if (cat.id !== categoryId && cat.images.length > 0) {
+          return {
+            ...cat,
+            images: [],
+            currentPage: 0,
+            nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=20`,
+          };
+        }
+        return cat;
+      })
     );
 
-    if (candidate) {
-      loadCategoryImages(candidate.id);
+    // Trigger load for the new tab if needed
+    // We use a timeout to let the state update settle, or we can just check the current state ref
+    // Actually relying on the 'categories' state here might be stale if we just called setCategories.
+    // However, the *load* check depends on if we *already* have images.
+    // Since we just switched tabs, we can check the *existing* category data in 'categories' (before the clear update)
+    // because the current tab's data wouldn't be touched by the clear logic anyway.
+
+    const category = categories.find((c) => c.id === categoryId);
+    if (
+      category &&
+      category.images.length === 0 &&
+      !category.isLoading &&
+      category.nextPageUrl
+    ) {
+      loadCategoryImages(categoryId);
     }
-  }, [categories, activeLoads]);
+  };
+
+  // Initial load effect
+  useEffect(() => {
+    if (activeTabId && categories.length > 0) {
+      const categoryId = parseInt(activeTabId);
+      const category = categories.find((c) => c.id === categoryId);
+      if (
+        category &&
+        category.images.length === 0 &&
+        !category.isLoading &&
+        category.nextPageUrl
+      ) {
+        loadCategoryImages(categoryId);
+      }
+    }
+  }, [activeTabId]); // Keep this simple, strictly for initial mount or external ID changes
 
   // Load images for a category
   const loadCategoryImages = async (categoryId: number) => {
     const loadKey = `cat-${categoryId}`;
 
-    if (activeLoads.size >= MAX_CONCURRENT_LOADS) {
-      toast.info('Loading in progress, please wait...');
-      return;
-    }
-
-    const category = categories.find(c => c.id === categoryId);
-    if (!category?.nextPageUrl) {
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category?.nextPageUrl || category.isLoading) {
       return;
     }
 
     try {
-      setActiveLoads(prev => new Set(prev).add(loadKey));
+      setActiveLoads((prev) => new Set(prev).add(loadKey));
 
-      setCategories(prev => prev.map(cat =>
-        cat.id === categoryId ? { ...cat, isLoading: true } : cat
-      ));
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, isLoading: true } : cat
+        )
+      );
 
       const response = await fetch(category.nextPageUrl);
       const result: GalleriesResponse = await response.json();
@@ -232,32 +288,36 @@ const EventGalleryPage = () => {
           title: `${category.title} - Image ${img.id}`,
         }));
 
-        setCategories(prev => prev.map(cat => {
-          if (cat.id === categoryId) {
-            return {
-              ...cat,
-              images: [...cat.images, ...newImages],
-              isLoading: false,
-              currentPage: data.current_page,
-              totalPages: data.last_page,
-              totalImages: data.total,
-              nextPageUrl: data.next_page_url,
-            };
-          }
-          return cat;
-        }));
+        setCategories((prev) =>
+          prev.map((cat) => {
+            if (cat.id === categoryId) {
+              return {
+                ...cat,
+                images: [...cat.images, ...newImages],
+                isLoading: false,
+                currentPage: data.current_page,
+                totalPages: data.last_page,
+                totalImages: data.total,
+                nextPageUrl: data.next_page_url,
+              };
+            }
+            return cat;
+          })
+        );
 
         toast.success(`Loaded ${newImages.length} images`);
       }
     } catch (error) {
-      console.error('Error loading images:', error);
-      toast.error('Failed to load images');
+      console.error("Error loading images:", error);
+      toast.error("Failed to load images");
 
-      setCategories(prev => prev.map(cat =>
-        cat.id === categoryId ? { ...cat, isLoading: false } : cat
-      ));
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, isLoading: false } : cat
+        )
+      );
     } finally {
-      setActiveLoads(prev => {
+      setActiveLoads((prev) => {
         const newSet = new Set(prev);
         newSet.delete(loadKey);
         return newSet;
@@ -266,7 +326,7 @@ const EventGalleryPage = () => {
   };
 
   const toggleImageSelection = (imageId: string) => {
-    setSelectedImages(prev => {
+    setSelectedImages((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(imageId)) {
         newSet.delete(imageId);
@@ -278,11 +338,11 @@ const EventGalleryPage = () => {
   };
 
   const selectAllInCategory = (categoryId: number) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     if (category) {
-      setSelectedImages(prev => {
+      setSelectedImages((prev) => {
         const newSet = new Set(prev);
-        category.images.forEach(img => newSet.add(img.id));
+        category.images.forEach((img) => newSet.add(img.id));
         return newSet;
       });
       toast.success(`Selected ${category.images.length} images`);
@@ -290,14 +350,14 @@ const EventGalleryPage = () => {
   };
 
   const deselectAllInCategory = (categoryId: number) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     if (category) {
-      setSelectedImages(prev => {
+      setSelectedImages((prev) => {
         const newSet = new Set(prev);
-        category.images.forEach(img => newSet.delete(img.id));
+        category.images.forEach((img) => newSet.delete(img.id));
         return newSet;
       });
-      toast.success('Selection cleared');
+      toast.success("Selection cleared");
     }
   };
 
@@ -342,10 +402,10 @@ const EventGalleryPage = () => {
   const performSingleDownload = async (image: GalleryImage) => {
     try {
       try {
-        const response = await fetch(image.url, { mode: 'cors' });
+        const response = await fetch(image.url, { mode: "cors" });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch image');
+          throw new Error("Failed to fetch image");
         }
 
         const blob = await response.blob();
@@ -392,23 +452,49 @@ const EventGalleryPage = () => {
     }
 
     setIsDownloading(true);
-    toast.loading(`Downloading ${selectedImages.size} image(s)...`);
+    toast.loading(`Preparing ${selectedImages.size} image(s) for download...`);
 
     try {
-      const allImages = categories.flatMap(cat => cat.images);
-      const imagesToDownload = allImages.filter(img => selectedImages.has(img.id));
+      const zip = new JSZip();
+      const allImages = categories.flatMap((cat) => cat.images);
+      const imagesToDownload = allImages.filter((img) =>
+        selectedImages.has(img.id)
+      );
 
-      for (const image of imagesToDownload) {
-        await performSingleDownload(image);
-        await new Promise(resolve => setTimeout(resolve, 500));
+      let downloadedCount = 0;
+
+      const downloadPromises = imagesToDownload.map(async (image) => {
+        try {
+          const response = await fetch(image.url, { mode: "cors" });
+          if (!response.ok) throw new Error("Network response was not ok");
+          const blob = await response.blob();
+          const fileName = `${image.title
+            .replace(/[^a-z0-9]/gi, "_")
+            .toLowerCase()}.jpg`;
+          zip.file(fileName, blob);
+          downloadedCount++;
+        } catch (error) {
+          console.error(`Failed to download ${image.title}`, error);
+        }
+      });
+
+      await Promise.all(downloadPromises);
+
+      if (downloadedCount === 0) {
+        throw new Error("No images could be downloaded");
       }
 
+      toast.loading("Generating zip file...");
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `${eventInfo?.title || "event-gallery"}.zip`);
+
       toast.dismiss();
-      toast.success(`Downloaded ${selectedImages.size} image(s)`);
+      toast.success("Download started!");
       setSelectedImages(new Set());
     } catch (error) {
+      console.error("Batch download error:", error);
       toast.dismiss();
-      toast.error("Some downloads failed");
+      toast.error("Failed to generate zip file");
     } finally {
       setIsDownloading(false);
     }
@@ -434,99 +520,46 @@ const EventGalleryPage = () => {
   const columns = useMemo(() => {
     if (width >= 1280) return 5; // xl
     if (width >= 1024) return 4; // lg
-    if (width >= 640) return 3;  // sm
-    return 2;                    // default/mobile
+    if (width >= 640) return 3; // sm
+    return 2; // default/mobile
   }, [width]);
 
   // Flatten data for virtualization
   const virtualItems = useMemo(() => {
     const items: VirtualItem[] = [];
+    const categoryId = activeTabId ? parseInt(activeTabId) : null;
+    const category = categories.find((c) => c.id === categoryId);
 
-    categories.forEach(category => {
-      // 1. Add Header
-      items.push({ type: 'header', category });
+    if (!category) return items;
 
-      // 2. Add Image Rows
-      if (category.images.length > 0) {
-        for (let i = 0; i < category.images.length; i += columns) {
-          items.push({
-            type: 'image-row',
-            categoryId: category.id,
-            items: category.images.slice(i, i + columns)
-          });
-        }
+    // 1. Add Image Rows
+    if (category.images.length > 0) {
+      for (let i = 0; i < category.images.length; i += columns) {
+        items.push({
+          type: "image-row",
+          items: category.images.slice(i, i + columns),
+        });
       }
+    }
 
-      // 3. Add Empty State or Load More
-      if (category.images.length === 0 && !category.isLoading && !category.nextPageUrl) {
-        items.push({ type: 'empty', categoryId: category.id });
-      } else if (category.nextPageUrl || category.isLoading) {
-        items.push({ type: 'load-more', category });
-      }
-    });
+    // 2. Add Empty State or Loading
+    if (
+      category.images.length === 0 &&
+      !category.isLoading &&
+      !category.nextPageUrl
+    ) {
+      items.push({ type: "empty" });
+    } else if (category.isLoading) {
+      items.push({ type: "loading" });
+    }
 
     return items;
-  }, [categories, columns]);
+  }, [categories, columns, activeTabId]);
 
   // Render a specific item
   const renderItem = (_: number, item: VirtualItem) => {
     switch (item.type) {
-      case 'header':
-        const { category } = item;
-        const selectedInCategory = category.images.filter(img => selectedImages.has(img.id)).length;
-        const allSelected = category.images.length > 0 && selectedInCategory === category.images.length;
-
-        return (
-          <div className="pt-8 pb-4 bg-background">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b-2">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold mb-2">{category.title}</h2>
-                {category.description && (
-                  <p className="text-muted-foreground mb-2">{category.description}</p>
-                )}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {category.totalImages > 0 && (
-                    <Badge variant="outline">
-                      {category.images.length} / {category.totalImages} loaded
-                    </Badge>
-                  )}
-                  {selectedInCategory > 0 && (
-                    <Badge variant="default">
-                      {selectedInCategory} selected
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {category.images.length > 0 && (
-                  allSelected ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deselectAllInCategory(category.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Deselect All
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => selectAllInCategory(category.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Select All ({category.images.length})
-                    </Button>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'image-row':
+      case "image-row":
         return (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4">
             {item.items.map((image) => {
@@ -534,8 +567,9 @@ const EventGalleryPage = () => {
               return (
                 <Card
                   key={image.id}
-                  className={`group relative overflow-hidden transition-all hover:shadow-xl ${isSelected ? "ring-2 ring-primary shadow-lg" : ""
-                    }`}
+                  className={`group relative overflow-hidden transition-all hover:shadow-xl ${
+                    isSelected ? "ring-2 ring-primary shadow-lg" : ""
+                  }`}
                 >
                   <div className="aspect-square relative overflow-hidden bg-muted">
                     <LazyImage
@@ -560,12 +594,15 @@ const EventGalleryPage = () => {
                     <div className="absolute top-2 left-2 z-10">
                       <div
                         onClick={() => toggleImageSelection(image.id)}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${isSelected
-                          ? "bg-primary border-primary"
-                          : "bg-white/90 border-white/90 hover:bg-white"
-                          }`}
+                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
+                          isSelected
+                            ? "bg-primary border-primary"
+                            : "bg-white/90 border-white/90 hover:bg-white"
+                        }`}
                       >
-                        {isSelected && <Check className="w-4 h-4 text-primary-foreground" />}
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        )}
                       </div>
                     </div>
 
@@ -581,37 +618,18 @@ const EventGalleryPage = () => {
           </div>
         );
 
-      case 'empty':
+      case "empty":
         return (
-          <div className="flex flex-col items-center justify-center py-12">
+          <div className="flex flex-col items-center justify-center py-20">
             <ImageIcon className="w-12 h-12 text-muted-foreground mb-3" />
             <p className="text-muted-foreground">No images in this category</p>
           </div>
         );
 
-      case 'load-more':
-        const cat = item.category;
+      case "loading":
         return (
-          <div className="flex justify-center py-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => loadCategoryImages(cat.id)}
-              disabled={cat.isLoading}
-              className="min-w-[200px]"
-            >
-              {cat.isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  {cat.images.length === 0 ? "Load Gallery" : "Load More Images"}
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
+          <div className="flex justify-center py-10">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         );
 
@@ -620,17 +638,37 @@ const EventGalleryPage = () => {
     }
   };
 
+  const handleEndReached = () => {
+    if (!activeTabId) return;
+    const categoryId = parseInt(activeTabId);
+    const category = categories.find((c) => c.id === categoryId);
+    if (category && category.nextPageUrl && !category.isLoading) {
+      loadCategoryImages(categoryId);
+    }
+  };
+
+  const activeCategory = categories.find(
+    (c) => c.id.toString() === activeTabId
+  );
+  const selectedInCategory = activeCategory
+    ? activeCategory.images.filter((img) => selectedImages.has(img.id)).length
+    : 0;
+  const allSelected =
+    activeCategory &&
+    activeCategory.images.length > 0 &&
+    selectedInCategory === activeCategory.images.length;
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background py-12 sm:py-16">
+      <section className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background py-10 sm:py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <Button
               variant="ghost"
-              onClick={() => navigate('/events')}
+              onClick={() => navigate("/events")}
               className="mb-6 -ml-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -639,25 +677,13 @@ const EventGalleryPage = () => {
 
             <div className="text-center">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
-                {eventInfo?.title || 'Event Gallery'}
+                {eventInfo?.title || "Event Gallery"}
               </h1>
               {eventInfo?.description && (
                 <p className="text-lg text-muted-foreground mb-6">
                   {eventInfo.description}
                 </p>
               )}
-              <div className="flex flex-wrap gap-4 justify-center items-center">
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
-                  <ImageIcon className="w-5 h-5 text-primary" />
-                  <span className="text-sm font-medium">
-                    {totalImages} Total Photos
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
-                  <Check className="w-5 h-5 text-primary" />
-                  <span className="text-sm font-medium">{selectedImages.size} Selected</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -670,7 +696,9 @@ const EventGalleryPage = () => {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5" />
-                <span className="font-semibold">{selectedImages.size} image(s) selected</span>
+                <span className="font-semibold">
+                  {selectedImages.size} image(s) selected
+                </span>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -682,7 +710,11 @@ const EventGalleryPage = () => {
                   <Download className="w-4 h-4" />
                   Download Selected
                 </Button>
-                <Button variant="outline" onClick={clearSelection} className="flex items-center gap-2 text-black dark:text-white">
+                <Button
+                  variant="outline"
+                  onClick={clearSelection}
+                  className="flex items-center gap-2 text-black dark:text-white"
+                >
                   <X className="w-4 h-4" />
                   Clear
                 </Button>
@@ -692,8 +724,8 @@ const EventGalleryPage = () => {
         </div>
       )}
 
-      {/* Categories Section with Virtualization */}
-      <section className="min-h-screen">
+      {/* Tabs and Content Section */}
+      <section className="pb-16 min-h-screen">
         <div className="container mx-auto px-4 max-w-7xl">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -703,15 +735,80 @@ const EventGalleryPage = () => {
           ) : categories.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
               <ImageIcon className="w-16 h-16 text-muted-foreground mb-4" />
-              <p className="text-xl text-muted-foreground">No galleries available</p>
+              <p className="text-xl text-muted-foreground">
+                No galleries available
+              </p>
             </div>
           ) : (
-            <Virtuoso
-              useWindowScroll
-              data={virtualItems}
-              itemContent={renderItem}
-              className="min-h-screen"
-            />
+            <Tabs
+              value={activeTabId || undefined}
+              onValueChange={handleTabChange}
+              className="w-full"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 border-b pb-4">
+                <TabsList className="flex flex-wrap h-auto bg-transparent p-0 gap-2 justify-start">
+                  {categories.map((cat) => (
+                    <TabsTrigger
+                      key={cat.id}
+                      value={cat.id.toString()}
+                      className="px-4 py-2 rounded-full border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+                    >
+                      {cat.title}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                <div className="flex items-center gap-3">
+                  {activeCategory && (
+                    <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-xs font-medium">
+                      <ImageIcon className="w-4 h-4 text-primary" />
+                      {activeCategory.totalImages} Photos
+                    </div>
+                  )}
+                  {activeCategory && activeCategory.images.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        allSelected
+                          ? deselectAllInCategory(activeCategory.id)
+                          : selectAllInCategory(activeCategory.id)
+                      }
+                      className="rounded-full h-9"
+                    >
+                      {allSelected ? (
+                        <>
+                          <X className="w-4 h-4 mr-2" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <TabsContent value={activeTabId!} className="mt-0 outline-none">
+                {activeCategory?.description && (
+                  <p className="text-muted-foreground mb-6 bg-muted/30 p-4 rounded-lg border-l-4 border-primary">
+                    {activeCategory.description}
+                  </p>
+                )}
+
+                <Virtuoso
+                  useWindowScroll
+                  data={virtualItems}
+                  itemContent={renderItem}
+                  endReached={handleEndReached}
+                  className="min-h-[500px]"
+                  overscan={200}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </section>
@@ -724,7 +821,10 @@ const EventGalleryPage = () => {
           <DialogHeader>
             <DialogTitle>Download Images</DialogTitle>
             <DialogDescription>
-              Please provide your information to download {pendingDownload ? "this image" : `${selectedImages.size} image(s)`}
+              Please provide your information to download{" "}
+              {pendingDownload
+                ? "this image"
+                : `${selectedImages.size} image(s)`}
             </DialogDescription>
           </DialogHeader>
 

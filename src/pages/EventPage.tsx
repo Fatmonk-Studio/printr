@@ -4,7 +4,13 @@ import { Navigation } from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, Loader2, ChevronRight, Calendar, FolderOpen } from "lucide-react";
+import {
+  ImageIcon,
+  Loader2,
+  ChevronRight,
+  Calendar,
+  FolderOpen,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -41,17 +47,19 @@ const EventPage = () => {
     const fetchEvents = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('https://admin.printr.store/api/event/list');
+        const response = await fetch(
+          "https://admin.printr.store/api/event/list"
+        );
         const result: EventListResponse = await response.json();
-        
+
         if (result.success && result.data.length > 0) {
           setEvents(result.data);
         } else {
-          toast.error('No events available');
+          toast.error("No events available");
         }
       } catch (error) {
-        console.error('Error fetching events:', error);
-        toast.error('Failed to load events');
+        console.error("Error fetching events:", error);
+        toast.error("Failed to load events");
       } finally {
         setIsLoading(false);
       }
@@ -76,13 +84,14 @@ const EventPage = () => {
               Event Gallery
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground mb-8">
-              Browse through our collection of memorable moments. Select an event to view and download photos.
+              Browse through our collection of memorable moments. Select an
+              event to view and download photos.
             </p>
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
                 <Calendar className="w-5 h-5 text-primary" />
                 <span className="text-sm font-medium">
-                  {events.length} {events.length === 1 ? 'Event' : 'Events'}
+                  {events.length} {events.length === 1 ? "Event" : "Events"}
                 </span>
               </div>
             </div>
@@ -101,17 +110,21 @@ const EventPage = () => {
           ) : events.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
               <ImageIcon className="w-16 h-16 text-muted-foreground mb-4" />
-              <p className="text-xl text-muted-foreground">No events available</p>
+              <p className="text-xl text-muted-foreground">
+                No events available
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map((event) => {
-                const activeCategories = event.categories.filter(cat => cat.status === 'active');
-                
+                const activeCategories = event.categories.filter(
+                  (cat) => cat.status === "active"
+                );
+
                 return (
                   <Card
                     key={event.id}
-                    className="group overflow-hidden border-2 hover:border-primary transition-all hover:shadow-xl cursor-pointer"
+                    className="group overflow-hidden border-2 hover:border-primary transition-all hover:shadow-xl cursor-pointer flex flex-col h-full"
                     onClick={() => handleEventClick(event.id)}
                   >
                     {/* Card Image/Icon Section */}
@@ -125,26 +138,31 @@ const EventPage = () => {
                     </div>
 
                     {/* Card Content */}
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
-                        {event.title}
-                      </h3>
-                      
-                      {event.description && (
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                          {event.description}
-                        </p>
-                      )}
+                    <div className="flex flex-col flex-1 justify-between p-6">
+                      <div>
+                        <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
+                          {event.title}
+                        </h3>
 
-                      <div className="flex items-center gap-2 mb-4">
-                        <Badge variant="secondary" className="text-xs">
-                          <FolderOpen className="w-3 h-3 mr-1" />
-                          {activeCategories.length} {activeCategories.length === 1 ? 'Category' : 'Categories'}
-                        </Badge>
+                        {event.description && (
+                          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                            {event.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 mb-4">
+                          <Badge variant="secondary" className="text-xs">
+                            <FolderOpen className="w-3 h-3 mr-1" />
+                            {activeCategories.length}{" "}
+                            {activeCategories.length === 1
+                              ? "Category"
+                              : "Categories"}
+                          </Badge>
+                        </div>
                       </div>
 
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all"
                       >
                         View Gallery
