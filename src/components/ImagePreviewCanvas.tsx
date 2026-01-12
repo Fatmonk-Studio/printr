@@ -10,6 +10,7 @@ export interface ImagePreviewCanvasProps {
   initialCropData?: CropData; // Initial crop data from parent
   onReset?: () => void; // Reset callback
   onScaleChange?: (scale: number) => void; // Scale change callback
+  transparent?: boolean; // New prop for transparent background
 }
 
 export interface CropData {
@@ -18,21 +19,22 @@ export interface CropData {
   scale: number;
 }
 
-export const ImagePreviewCanvas = ({ 
-  imageUrl, 
-  width, 
-  height, 
-  onCropChange, 
+export const ImagePreviewCanvas = ({
+  imageUrl,
+  width,
+  height,
+  onCropChange,
   showControls = true,
   initialCropData,
   onReset,
-  onScaleChange
+  onScaleChange,
+  transparent = false,
 }: ImagePreviewCanvasProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [imagePosition, setImagePosition] = useState({ 
-    x: initialCropData?.x || 0, 
-    y: initialCropData?.y || 0 
+  const [imagePosition, setImagePosition] = useState({
+    x: initialCropData?.x || 0,
+    y: initialCropData?.y || 0,
   });
   const [scale, setScale] = useState(initialCropData?.scale || 1);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -45,62 +47,74 @@ export const ImagePreviewCanvas = ({
     }
   }, [initialCropData]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - imagePosition.x,
-      y: e.clientY - imagePosition.y,
-    });
-  }, [imagePosition]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - imagePosition.x,
+        y: e.clientY - imagePosition.y,
+      });
+    },
+    [imagePosition]
+  );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging) return;
 
-    const newPosition = {
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    };
+      const newPosition = {
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      };
 
-    setImagePosition(newPosition);
-    onCropChange?.({
-      x: newPosition.x,
-      y: newPosition.y,
-      scale,
-    });
-  }, [isDragging, dragStart, scale, onCropChange]);
+      setImagePosition(newPosition);
+      onCropChange?.({
+        x: newPosition.x,
+        y: newPosition.y,
+        scale,
+      });
+    },
+    [isDragging, dragStart, scale, onCropChange]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
   }, []);
 
   // Touch handlers for mobile
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    setIsDragging(true);
-    setDragStart({
-      x: touch.clientX - imagePosition.x,
-      y: touch.clientY - imagePosition.y,
-    });
-  }, [imagePosition]);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - imagePosition.x,
+        y: touch.clientY - imagePosition.y,
+      });
+    },
+    [imagePosition]
+  );
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
-    e.preventDefault();
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
 
-    const touch = e.touches[0];
-    const newPosition = {
-      x: touch.clientX - dragStart.x,
-      y: touch.clientY - dragStart.y,
-    };
+      const touch = e.touches[0];
+      const newPosition = {
+        x: touch.clientX - dragStart.x,
+        y: touch.clientY - dragStart.y,
+      };
 
-    setImagePosition(newPosition);
-    onCropChange?.({
-      x: newPosition.x,
-      y: newPosition.y,
-      scale,
-    });
-  }, [isDragging, dragStart, scale, onCropChange]);
+      setImagePosition(newPosition);
+      onCropChange?.({
+        x: newPosition.x,
+        y: newPosition.y,
+        scale,
+      });
+    },
+    [isDragging, dragStart, scale, onCropChange]
+  );
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -134,12 +148,14 @@ export const ImagePreviewCanvas = ({
           </Button>
         </div>
       )}
-      
+
       {/* Canvas Container - Isolated for frame overlay */}
       <div className="flex justify-center items-center">
         <div
           ref={canvasRef}
-          className="relative bg-white border-2 border-dashed border-border overflow-hidden cursor-move touch-none"
+          className={`relative overflow-hidden cursor-move touch-none ${
+            transparent ? "" : "bg-white border-2 border-dashed border-border"
+          }`}
           style={{
             width: `${width}px`,
             height: `${height}px`,
@@ -160,10 +176,9 @@ export const ImagePreviewCanvas = ({
             className="absolute select-none pointer-events-none"
             style={{
               width: `${width}px`,
-              height: 'auto',
+              height: "auto",
               transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${scale})`,
               transformOrigin: "top left",
-              transition: isDragging ? "none" : "transform 0.1s ease-out",
             }}
             draggable={false}
           />
@@ -176,7 +191,9 @@ export const ImagePreviewCanvas = ({
           <div className="space-y-2 pt-10">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Zoom</span>
-              <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>
+              <span className="text-sm text-muted-foreground">
+                {Math.round(scale * 100)}%
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button
