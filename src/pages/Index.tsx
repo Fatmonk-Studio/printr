@@ -30,41 +30,10 @@ type ProductFlow =
   | "planner"
   | "mug"
   | "tshirt"
-  | "bag";
+  | "totebag";
 
 const Index = () => {
   const [currentFlow, setCurrentFlow] = useState<ProductFlow>("home");
-
-  const products = [
-    {
-      id: "print",
-      title: "Print Photo",
-      description:
-        "High-quality photo prints in various formats and sizes. Perfect for preserving your precious memories.",
-      icon: Image,
-    },
-    {
-      id: "frame",
-      title: "Frame",
-      description:
-        "Beautiful framed prints with a selection of elegant frames to match any decor.",
-      icon: Frame,
-    },
-    {
-      id: "collage",
-      title: "Collage",
-      description:
-        "Create stunning photo collages with multiple layout options for up to 10 photos.",
-      icon: Grid3X3,
-    },
-    {
-      id: "album",
-      title: "Album",
-      description:
-        "Premium photo albums with customizable layouts and professional binding.",
-      icon: BookOpen,
-    },
-  ];
 
   const handleProductClick = (productId: string) => {
     setCurrentFlow(productId as ProductFlow);
@@ -77,7 +46,7 @@ const Index = () => {
   if (currentFlow === "print") {
     return (
       <ProductFlowLayout title="Print Photo" onBack={handleBackToHome}>
-        <PrintPhotoFlow />
+        <PrintPhotoFlow id={1} />
       </ProductFlowLayout>
     );
   }
@@ -85,7 +54,7 @@ const Index = () => {
   if (currentFlow === "frame") {
     return (
       <ProductFlowLayout title="Frame" onBack={handleBackToHome}>
-        <FrameFlow />
+        <FrameFlow id={2} />
       </ProductFlowLayout>
     );
   }
@@ -93,7 +62,7 @@ const Index = () => {
   if (currentFlow === "collage") {
     return (
       <ProductFlowLayout title="Collage" onBack={handleBackToHome}>
-        <CollageFlow />
+        <CollageFlow id={3} />
       </ProductFlowLayout>
     );
   }
@@ -101,7 +70,7 @@ const Index = () => {
   if (currentFlow === "album") {
     return (
       <ProductFlowLayout title="Album" onBack={handleBackToHome}>
-        <AlbumFlow />
+        <AlbumFlow id={4} />
       </ProductFlowLayout>
     );
   }
@@ -109,7 +78,7 @@ const Index = () => {
   if (currentFlow === "planner") {
     return (
       <ProductFlowLayout title="Planner" onBack={handleBackToHome}>
-        <PlannerFlow />
+        <PlannerFlow id={5} />
       </ProductFlowLayout>
     );
   }
@@ -117,7 +86,7 @@ const Index = () => {
   if (currentFlow === "mug") {
     return (
       <ProductFlowLayout title="Mug" onBack={handleBackToHome}>
-        <MugFlow />
+        <MugFlow id={6} />
       </ProductFlowLayout>
     );
   }
@@ -125,15 +94,15 @@ const Index = () => {
   if (currentFlow === "tshirt") {
     return (
       <ProductFlowLayout title="T-Shirt" onBack={handleBackToHome}>
-        <TshirtFlow />
+        <TshirtFlow id={7} />
       </ProductFlowLayout>
     );
   }
 
-  if (currentFlow === "bag") {
+  if (currentFlow === "totebag") {
     return (
       <ProductFlowLayout title="Tote Bag" onBack={handleBackToHome}>
-        <TotebagFlow />
+        <TotebagFlow id={8} />
       </ProductFlowLayout>
     );
   }

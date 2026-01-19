@@ -5,7 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Image, Frame, Grid3X3, BookOpen, Coffee, Shirt, ShoppingBag, Calendar } from "lucide-react";
+import {
+  Image,
+  Frame,
+  Grid3X3,
+  BookOpen,
+  Coffee,
+  Shirt,
+  ShoppingBag,
+  Calendar,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -48,7 +57,7 @@ const products = [
     gradient: "from-green-500 to-emerald-500",
     comingSoon: false,
   },
-   {
+  {
     id: "planner",
     title: "Planner",
     description: "Personalized planners with custom photo covers",
@@ -62,7 +71,7 @@ const products = [
     description: "Custom printed mugs with your favorite photos",
     icon: Coffee,
     gradient: "from-yellow-500 to-orange-500",
-    comingSoon: true,
+    comingSoon: false,
   },
   {
     id: "tshirt",
@@ -80,7 +89,6 @@ const products = [
     gradient: "from-pink-500 to-rose-500",
     comingSoon: true,
   },
- 
 ];
 
 export const ProductSelectionModal = ({
@@ -117,7 +125,9 @@ export const ProductSelectionModal = ({
             return (
               <button
                 key={product.id}
-                onClick={() => handleProductClick(product.id, product.comingSoon)}
+                onClick={() =>
+                  handleProductClick(product.id, product.comingSoon)
+                }
                 className={cn(
                   "group relative overflow-hidden rounded-xl p-5",
                   "border-2 border-gray-200 hover:border-transparent",

@@ -19,34 +19,31 @@ import { toast } from "sonner";
 import totebagWhite from "@/assets/service products/totebag.png";
 import totebagBlack from "@/assets/service products/totebag black.png";
 
-interface TotebagOption {
-  id: string;
-  name: string;
-  image: string;
-  color: string;
-}
-
-const totebagOptions: TotebagOption[] = [
-  { id: "white", name: "White Totebag", image: totebagWhite, color: "White" },
-  { id: "black", name: "Black Totebag", image: totebagBlack, color: "Black" },
-];
-
 interface PrintSize {
   id: number;
   name: string;
+  print_type_id: number;
+  status: number;
+  price: string;
   dimention: string;
-  price: number;
+  created_at: string;
+  updated_at: string;
 }
 
-const dummySizes: PrintSize[] = [
-  { id: 1, name: "Standard", dimention: '12" x 16"', price: 550 },
-  { id: 2, name: "Large", dimention: '16" x 20"', price: 750 },
-];
+interface PrintType {
+  id: number;
+  name: string;
+  slug: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
+  size: PrintSize[];
+}
 
 interface PhotoItem {
   id: string;
   file: File;
-  totebagId: string;
+  printTypeId: number;
   sizeId: number;
   preview: string;
   cropData?: CropData;
@@ -56,10 +53,37 @@ interface PhotoItem {
 // Mobile scaling factor
 const MOBILE_SCALE_FACTOR = 0.65;
 
-const TotebagFlow = () => {
+const TotebagFlow = ({ id }: { id: number }) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
+  const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Fetch print types and sizes from API
+  useEffect(() => {
+    const fetchPrintTypes = async () => {
+      try {
+        const response = await fetch(
+          `https://admin.printr.store/api/print-type/list/${id}`,
+        );
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setPrintTypes(result.data);
+        } else {
+          toast.error("Failed to load bag types");
+        }
+      } catch (error) {
+        console.error("Error fetching print types:", error);
+        toast.error("Failed to load bag types");
+      } finally {
+        setLoadingPrintTypes(false);
+      }
+    };
+
+    fetchPrintTypes();
+  }, [id]);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -80,11 +104,14 @@ const TotebagFlow = () => {
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
         reader.onload = (e) => {
+          const defaultPrintType = printTypes.length > 0 ? printTypes[0] : null;
+          const defaultSize = defaultPrintType?.size?.[0];
+
           const newPhoto: PhotoItem = {
             id: Math.random().toString(36).substr(2, 9),
             file,
-            totebagId: "white",
-            sizeId: 1,
+            printTypeId: defaultPrintType?.id || 1,
+            sizeId: defaultSize?.id || 1,
             preview: e.target?.result as string,
             cropData: { x: 0, y: 0, scale: 1 },
             orientation: "vertical",
@@ -102,7 +129,7 @@ const TotebagFlow = () => {
 
   const updatePhoto = (id: string, updates: Partial<PhotoItem>) => {
     setPhotos((prev) =>
-      prev.map((photo) => (photo.id === id ? { ...photo, ...updates } : photo))
+      prev.map((photo) => (photo.id === id ? { ...photo, ...updates } : photo)),
     );
   };
 
@@ -124,18 +151,34 @@ const TotebagFlow = () => {
     }
   };
 
-  const getTotebagById = (id: string) => {
-    return totebagOptions.find((t) => t.id === id) || totebagOptions[0];
+  const getPrintTypeById = (printTypeId: number): PrintType | undefined => {
+    return printTypes.find((pt) => pt.id === printTypeId);
   };
 
-  const getSizeById = (id: number) => {
-    return dummySizes.find((s) => s.id === id) || dummySizes[0];
+  const getTotebagMockupImage = (printType?: PrintType) => {
+    if (!printType) return totebagWhite;
+    const name = printType.name.toLowerCase();
+    if (name.includes("black")) return totebagBlack;
+    return totebagWhite;
+  };
+
+  const getSizeById = (sizeId: number): PrintSize | undefined => {
+    for (const printType of printTypes) {
+      const size = printType.size.find((s) => s.id === sizeId);
+      if (size) return size;
+    }
+    return undefined;
+  };
+
+  const getAvailableSizes = (printTypeId: number): PrintSize[] => {
+    const printType = getPrintTypeById(printTypeId);
+    return printType?.size || [];
   };
 
   const getTotalPrice = () => {
     return photos.reduce((total, photo) => {
       const size = getSizeById(photo.sizeId);
-      return total + size.price;
+      return total + (size ? parseFloat(size.price) : 0);
     }, 0);
   };
 
@@ -184,7 +227,7 @@ const TotebagFlow = () => {
             }
           },
           "image/jpeg",
-          0.95
+          0.95,
         );
       };
 
@@ -202,22 +245,22 @@ const TotebagFlow = () => {
           const croppedImageBlob = await createCroppedImage(photo);
           return {
             croppedImageBlob,
-            totebagId: photo.totebagId,
+            printTypeId: photo.printTypeId,
             sizeId: photo.sizeId,
             orientation: photo.orientation,
           };
-        })
+        }),
       );
 
       const formData = new FormData();
       formData.append("name", contactData.name);
       formData.append("email", contactData.email);
       formData.append("phone", contactData.phone);
-      formData.append("service_id", "5"); // Assuming 5 is for Totebag
+      formData.append("service_id", id.toString());
       formData.append("location", contactData.location);
       formData.append(
         "delivery_type",
-        contactData.deliveryLocation || "inside_dhaka"
+        contactData.deliveryLocation || "inside_dhaka",
       );
       formData.append("payment_method", contactData.paymentMethod);
 
@@ -227,21 +270,21 @@ const TotebagFlow = () => {
 
       processedPhotos.forEach((processed, index) => {
         formData.append(
-          `documents[${index}][totebag_color]`,
-          processed.totebagId
+          `documents[${index}][print_type_id]`,
+          processed.printTypeId.toString(),
         );
         formData.append(
           `documents[${index}][size_id]`,
-          processed.sizeId.toString()
+          processed.sizeId.toString(),
         );
         formData.append(
           `documents[${index}][orientation]`,
-          processed.orientation
+          processed.orientation,
         );
         formData.append(
           `documents[${index}][file]`,
           processed.croppedImageBlob,
-          `totebag_${index + 1}.jpg`
+          `totebag_${index + 1}.jpg`,
         );
       });
 
@@ -251,7 +294,7 @@ const TotebagFlow = () => {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const result = await response.json();
@@ -263,7 +306,7 @@ const TotebagFlow = () => {
         setShowContactForm(false);
       } else {
         toast.error(
-          result.message || "Failed to submit order. Please try again."
+          result.message || "Failed to submit order. Please try again.",
         );
       }
     } catch (error) {
@@ -293,7 +336,7 @@ const TotebagFlow = () => {
           <div className="space-y-2">
             {photos.map((photo) => {
               const size = getSizeById(photo.sizeId);
-              const totebag = getTotebagById(photo.totebagId);
+              const printType = getPrintTypeById(photo.printTypeId);
 
               return (
                 <div
@@ -305,11 +348,11 @@ const TotebagFlow = () => {
                       {photo.file.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {totebag.name} - {size.dimention}
+                      {printType?.name || "Bag"} - {size?.dimention}
                     </p>
                   </div>
                   <span className="text-sm font-medium whitespace-nowrap">
-                    {size.price} tk
+                    {size ? parseFloat(size.price).toFixed(0) : 0} tk
                   </span>
                 </div>
               );
@@ -405,7 +448,9 @@ const TotebagFlow = () => {
                   >
                     {/* The Totebag Image (Background) */}
                     <img
-                      src={getTotebagById(photo.totebagId).image}
+                      src={getTotebagMockupImage(
+                        getPrintTypeById(photo.printTypeId),
+                      )}
                       alt="Totebag Mockup"
                       className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                     />
@@ -428,8 +473,8 @@ const TotebagFlow = () => {
                                 ? 180
                                 : 280
                               : isMobile
-                              ? 130
-                              : 200
+                                ? 130
+                                : 200
                           }
                           height={
                             photo.orientation === "horizontal"
@@ -437,8 +482,8 @@ const TotebagFlow = () => {
                                 ? 130
                                 : 200
                               : isMobile
-                              ? 180
-                              : 280
+                                ? 180
+                                : 280
                           }
                           onCropChange={(cropData) =>
                             updatePhotoCrop(photo.id, cropData)
@@ -469,7 +514,7 @@ const TotebagFlow = () => {
                         onClick={() => {
                           const newScale = Math.max(
                             0.1,
-                            (photo.cropData?.scale || 1) - 0.1
+                            (photo.cropData?.scale || 1) - 0.1,
                           );
                           updatePhotoCrop(photo.id, {
                             ...photo.cropData!,
@@ -501,7 +546,7 @@ const TotebagFlow = () => {
                         onClick={() => {
                           const newScale = Math.min(
                             3,
-                            (photo.cropData?.scale || 1) + 0.1
+                            (photo.cropData?.scale || 1) + 0.1,
                           );
                           updatePhotoCrop(photo.id, {
                             ...photo.cropData!,
@@ -518,33 +563,28 @@ const TotebagFlow = () => {
 
                 {/* Configuration Options */}
                 <div className="space-y-6">
-                  {/* Color Selection */}
+                  {/* Bag Type Selection */}
                   <div className="space-y-3">
-                    <Label className="text-sm font-semibold">
-                      Totebag Color
-                    </Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {totebagOptions.map((option) => (
+                    <Label className="text-sm font-semibold">Bag Type</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {printTypes.map((type) => (
                         <button
-                          key={option.id}
-                          onClick={() =>
-                            updatePhoto(photo.id, { totebagId: option.id })
-                          }
+                          key={type.id}
+                          onClick={() => {
+                            const firstSize = type.size?.[0];
+                            updatePhoto(photo.id, {
+                              printTypeId: type.id,
+                              sizeId: firstSize?.id || photo.sizeId,
+                            });
+                          }}
                           className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
-                            photo.totebagId === option.id
+                            photo.printTypeId === type.id
                               ? "border-primary bg-primary/5 ring-1 ring-primary"
                               : "border-border hover:border-primary/40"
                           }`}
                         >
-                          <div
-                            className={`w-6 h-6 rounded-full border shadow-sm`}
-                            style={{
-                              backgroundColor:
-                                option.id === "white" ? "#fff" : "#1a1a1a",
-                            }}
-                          />
                           <span className="text-sm font-medium">
-                            {option.color}
+                            {type.name}
                           </span>
                         </button>
                       ))}
@@ -555,7 +595,7 @@ const TotebagFlow = () => {
                   <div className="space-y-3">
                     <Label className="text-sm font-semibold">Print Size</Label>
                     <div className="space-y-2">
-                      {dummySizes.map((size) => (
+                      {getAvailableSizes(photo.printTypeId).map((size) => (
                         <button
                           key={size.id}
                           onClick={() =>
@@ -574,7 +614,7 @@ const TotebagFlow = () => {
                             </p>
                           </div>
                           <span className="text-sm font-semibold">
-                            {size.price} tk
+                            {parseFloat(size.price).toFixed(0)} tk
                           </span>
                         </button>
                       ))}

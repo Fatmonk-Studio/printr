@@ -136,7 +136,7 @@ const EventGalleryPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showUserInfoDialog, setShowUserInfoDialog] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<GalleryImage | null>(
-    null
+    null,
   );
   const [userInfo, setUserInfo] = useState<UserInfo>({
     name: "",
@@ -152,7 +152,7 @@ const EventGalleryPage = () => {
       try {
         setIsLoading(true);
         const response = await fetch(
-          "https://admin.printr.store/api/event/list"
+          "https://admin.printr.store/api/event/list",
         );
         const result: EventListResponse = await response.json();
 
@@ -181,7 +181,7 @@ const EventGalleryPage = () => {
               totalPages: 1,
               totalImages: 0,
               nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=20`,
-            })
+            }),
           );
 
           setCategories(transformedCategories);
@@ -221,7 +221,7 @@ const EventGalleryPage = () => {
           };
         }
         return cat;
-      })
+      }),
     );
 
     // Trigger load for the new tab if needed
@@ -272,8 +272,8 @@ const EventGalleryPage = () => {
 
       setCategories((prev) =>
         prev.map((cat) =>
-          cat.id === categoryId ? { ...cat, isLoading: true } : cat
-        )
+          cat.id === categoryId ? { ...cat, isLoading: true } : cat,
+        ),
       );
 
       const response = await fetch(category.nextPageUrl);
@@ -302,7 +302,7 @@ const EventGalleryPage = () => {
               };
             }
             return cat;
-          })
+          }),
         );
 
         toast.success(`Loaded ${newImages.length} images`);
@@ -313,8 +313,8 @@ const EventGalleryPage = () => {
 
       setCategories((prev) =>
         prev.map((cat) =>
-          cat.id === categoryId ? { ...cat, isLoading: false } : cat
-        )
+          cat.id === categoryId ? { ...cat, isLoading: false } : cat,
+        ),
       );
     } finally {
       setActiveLoads((prev) => {
@@ -458,7 +458,7 @@ const EventGalleryPage = () => {
       const zip = new JSZip();
       const allImages = categories.flatMap((cat) => cat.images);
       const imagesToDownload = allImages.filter((img) =>
-        selectedImages.has(img.id)
+        selectedImages.has(img.id),
       );
 
       let downloadedCount = 0;
@@ -648,7 +648,7 @@ const EventGalleryPage = () => {
   };
 
   const activeCategory = categories.find(
-    (c) => c.id.toString() === activeTabId
+    (c) => c.id.toString() === activeTabId,
   );
   const selectedInCategory = activeCategory
     ? activeCategory.images.filter((img) => selectedImages.has(img.id)).length
@@ -669,7 +669,7 @@ const EventGalleryPage = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/events")}
-              className="mb-6 -ml-2"
+              className="mb-6 -ml-2 mt-5"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Events
@@ -757,8 +757,10 @@ const EventGalleryPage = () => {
                     </TabsTrigger>
                   ))}
                 </TabsList>
+              </div>
 
-                <div className="flex items-center gap-3">
+              <TabsContent value={activeTabId!} className="mt-0 outline-none">
+                <div className="flex justify-end items-center gap-3 mb-5">
                   {activeCategory && (
                     <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-xs font-medium">
                       <ImageIcon className="w-4 h-4 text-primary" />
@@ -790,15 +792,12 @@ const EventGalleryPage = () => {
                     </Button>
                   )}
                 </div>
-              </div>
 
-              <TabsContent value={activeTabId!} className="mt-0 outline-none">
                 {activeCategory?.description && (
                   <p className="text-muted-foreground mb-6 bg-muted/30 p-4 rounded-lg border-l-4 border-primary">
                     {activeCategory.description}
                   </p>
                 )}
-
                 <Virtuoso
                   useWindowScroll
                   data={virtualItems}

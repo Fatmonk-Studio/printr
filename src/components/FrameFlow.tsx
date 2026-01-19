@@ -96,7 +96,7 @@ const getResponsiveFrameDimensions = (isMobile: boolean) => {
 const getPreviewDimensions = (
   dimention: string,
   bleedType: BleedType,
-  isMobile: boolean = false
+  isMobile: boolean = false,
 ): { width: number; height: number } => {
   // Parse dimension string like "12\" x 18\""
   const parts = dimention.split("x").map((p) => parseFloat(p.trim()));
@@ -141,7 +141,7 @@ const getPreviewDimensions = (
   };
 };
 
-export const FrameFlow = () => {
+export const FrameFlow = ({ id }: { id: number }) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [frames, setFrames] = useState<Frame[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
@@ -167,7 +167,7 @@ export const FrameFlow = () => {
     const fetchFrames = async () => {
       try {
         const response = await fetch(
-          "https://admin.printr.store/api/frame/list"
+          "https://admin.printr.store/api/frame/list",
         );
         const result = await response.json();
 
@@ -192,7 +192,7 @@ export const FrameFlow = () => {
     const fetchPrintTypes = async () => {
       try {
         const response = await fetch(
-          "https://admin.printr.store/api/print-type/list"
+          `https://admin.printr.store/api/print-type/list/${id}`,
         );
         const result = await response.json();
 
@@ -223,7 +223,7 @@ export const FrameFlow = () => {
 
           // Find the default size with dimension "12" x 16""
           let defaultSize = defaultPrintType?.size?.find(
-            (s) => s.dimention === '12" x 16"'
+            (s) => s.dimention === '12" x 16"',
           );
           // If not found, use the first size as fallback
           if (!defaultSize && defaultPrintType?.size) {
@@ -252,7 +252,7 @@ export const FrameFlow = () => {
 
   const updatePhoto = (id: string, updates: Partial<PhotoItem>) => {
     setPhotos((prev) =>
-      prev.map((photo) => (photo.id === id ? { ...photo, ...updates } : photo))
+      prev.map((photo) => (photo.id === id ? { ...photo, ...updates } : photo)),
     );
   };
 
@@ -299,7 +299,7 @@ export const FrameFlow = () => {
     // Find Extra Large size across all print types
     for (const printType of printTypes) {
       const extraLargeSize = printType.size.find(
-        (s) => s.name === "Extra Large"
+        (s) => s.name === "Extra Large",
       );
       if (extraLargeSize) {
         return parseFloat(extraLargeSize.price);
@@ -389,7 +389,7 @@ export const FrameFlow = () => {
         }
         const previewDim = getPreviewDimensions(
           dimensionString,
-          photo.bleedType
+          photo.bleedType,
         );
 
         // Get crop data (position and scale from user's editing)
@@ -439,7 +439,7 @@ export const FrameFlow = () => {
             }
           },
           "image/jpeg",
-          0.95
+          0.95,
         );
       };
 
@@ -466,7 +466,7 @@ export const FrameFlow = () => {
             customSize: photo.customSize,
             useCustomSize: photo.useCustomSize,
           };
-        })
+        }),
       );
 
       const formData = new FormData();
@@ -477,7 +477,7 @@ export const FrameFlow = () => {
       formData.append("location", contactData.location);
       formData.append(
         "delivery_type",
-        contactData.deliveryLocation || "inside_dhaka"
+        contactData.deliveryLocation || "inside_dhaka",
       );
       formData.append("payment_method", contactData.paymentMethod);
 
@@ -491,18 +491,18 @@ export const FrameFlow = () => {
         if (photo.useCustomSize && photo.customSize) {
           formData.append(
             `documents[${index}][custom_size]`,
-            `${photo.customSize.width}x${photo.customSize.height}`
+            `${photo.customSize.width}x${photo.customSize.height}`,
           );
         } else {
           formData.append(
             `documents[${index}][size_id]`,
-            photo.sizeId.toString()
+            photo.sizeId.toString(),
           );
         }
 
         formData.append(
           `documents[${index}][frame_id]`,
-          photo.frameId.toString()
+          photo.frameId.toString(),
         );
         formData.append(`documents[${index}][orientation]`, photo.orientation);
 
@@ -512,12 +512,12 @@ export const FrameFlow = () => {
 
         formData.append(
           `documents[${index}][print_type_id]`,
-          photo.printTypeId.toString()
+          photo.printTypeId.toString(),
         );
         formData.append(
           `documents[${index}][file]`,
           processed.croppedImageBlob,
-          `photo_${index + 1}.jpg`
+          `photo_${index + 1}.jpg`,
         );
       });
 
@@ -526,7 +526,7 @@ export const FrameFlow = () => {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const result = await response.json();
@@ -539,7 +539,7 @@ export const FrameFlow = () => {
         setShowContactForm(false);
       } else {
         toast.error(
-          result.message || "Failed to submit order. Please try again."
+          result.message || "Failed to submit order. Please try again.",
         );
       }
     } catch (error) {
@@ -735,7 +735,7 @@ export const FrameFlow = () => {
                           const dims = getPreviewDimensions(
                             dimensionString,
                             photo.bleedType,
-                            isMobile
+                            isMobile,
                           );
                           return (
                             <ImagePreviewCanvas
@@ -809,7 +809,7 @@ export const FrameFlow = () => {
                           onClick={() => {
                             const newScale = Math.max(
                               0.1,
-                              (photo.cropData?.scale || 1) - 0.1
+                              (photo.cropData?.scale || 1) - 0.1,
                             );
                             updatePhotoCrop(photo.id, {
                               x: photo.cropData?.x || 0,
@@ -842,7 +842,7 @@ export const FrameFlow = () => {
                           onClick={() => {
                             const newScale = Math.min(
                               3,
-                              (photo.cropData?.scale || 1) + 0.1
+                              (photo.cropData?.scale || 1) + 0.1,
                             );
                             updatePhotoCrop(photo.id, {
                               x: photo.cropData?.x || 0,
@@ -986,7 +986,7 @@ export const FrameFlow = () => {
                                   {size.name} ({size.dimention}) -{" "}
                                   {parseFloat(size.price).toFixed(0)} tk
                                 </SelectItem>
-                              )
+                              ),
                             )}
                           </SelectContent>
                         </Select>

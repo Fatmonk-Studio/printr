@@ -180,7 +180,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
 
           <button
             type="button"
-            onClick={() => onProductSelect?.("bag")}
+            onClick={() => onProductSelect?.("totebag")}
             className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
           >
             <figure className="px-4 pt-4">
