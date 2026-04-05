@@ -158,7 +158,7 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
 
           <button
             type="button"
-            onClick={() => onProductSelect?.("tshirt")}
+            onClick={handleComingSoon}
             className="card bg-[#FFFFFF] dark:bg-[#1f1f1f] border-[1px] border-[#CECECE] dark:border-[#4a4a4a] w-full shadow-sm rounded-lg text-left hover:shadow-lg transition-shadow relative"
           >
             <figure className="px-4 pt-4">
@@ -175,6 +175,12 @@ export const Services = ({ onProductSelect }: ServicesProps) => {
               <p className="text-[#6C6F89] dark:text-[#a0a3b1] text-sm font-normal">
                 Personalized t-shirts with custom <br></br> photo prints
               </p>
+            </div>
+
+            <div className="absolute top-3 right-3 z-10">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg">
+                Coming Soon
+              </span>
             </div>
           </button>
 

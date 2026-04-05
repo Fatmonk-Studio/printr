@@ -37,6 +37,11 @@ interface PrintType {
   size: PrintSize[];
 }
 
+interface PrintPhotoFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
 interface PhotoItem {
   id: string;
   file: File;
@@ -66,11 +71,19 @@ const getPreviewDimensions = (
   };
 };
 
-export const PrintPhotoFlow = ({ id }: { id: number }) => {
+export const PrintPhotoFlow = ({
+  id,
+  onUnsavedChangesChange,
+}: PrintPhotoFlowProps) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
+  const hasUnsavedChanges = photos.length > 0 || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Fetch print types and sizes from API
   useEffect(() => {

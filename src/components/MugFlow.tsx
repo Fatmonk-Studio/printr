@@ -42,12 +42,22 @@ interface PhotoItem {
   orientation: "horizontal" | "vertical";
 }
 
-const MugFlow = ({ id }: { id: number }) => {
+interface MugFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
+const MugFlow = ({ id, onUnsavedChangesChange }: MugFlowProps) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const hasUnsavedChanges = photos.length > 0 || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Fetch print types and sizes from API
   useEffect(() => {
@@ -180,27 +190,36 @@ const MugFlow = ({ id }: { id: number }) => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        if (!ctx) {
-          reject(new Error("Could not get canvas context"));
-          return;
-        }
+        const targetWidth = 140;
+        const targetHeight = 150;
 
-        const outputWidth = 400;
-        const outputHeight = 400;
-        const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };
+        const designWidth = photo.orientation === "horizontal" ? 180 : 150;
+        const designHeight = photo.orientation === "horizontal" ? 150 : 180;
 
-        canvas.width = outputWidth;
-        canvas.height = outputHeight;
+        canvas.width = targetWidth * 2;
+        canvas.height = targetHeight * 2;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const previewImageWidth = 200;
-        const previewImageHeight = (img.height / img.width) * previewImageWidth;
-
         ctx.save();
         ctx.scale(2, 2);
+
+        const centerXOffset = (designWidth - targetWidth) / 2;
+        const centerYOffset = (designHeight - targetHeight) / 2;
+
+        const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };
+
+        ctx.translate(-centerXOffset, -centerYOffset);
         ctx.translate(cropData.x, cropData.y);
         ctx.scale(cropData.scale, cropData.scale);
-        ctx.drawImage(img, 0, 0, previewImageWidth, previewImageHeight);
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          designWidth,
+          designWidth * (img.height / img.width),
+        );
+
         ctx.restore();
 
         canvas.toBlob(
@@ -211,13 +230,100 @@ const MugFlow = ({ id }: { id: number }) => {
               reject(new Error("Could not create blob"));
             }
           },
-          "image/jpeg",
+          "image/png",
           0.95,
         );
       };
 
       img.onerror = () => reject(new Error("Could not load image"));
       img.src = photo.preview;
+    });
+  };
+
+  const createMockupImage = async (photo: PhotoItem): Promise<Blob> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const croppedBlob = await createCroppedImage(photo);
+        const croppedUrl = URL.createObjectURL(croppedBlob);
+
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        const printType = getPrintTypeById(photo.printTypeId);
+        bgImg.src = getMugMockupImage(printType);
+
+        bgImg.onload = () => {
+          const fgImg = new Image();
+          fgImg.src = croppedUrl;
+
+          fgImg.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            if (!ctx) {
+              URL.revokeObjectURL(croppedUrl);
+              reject(new Error("Could not get canvas context"));
+              return;
+            }
+
+            // Use the natural size of the mug image for high quality
+            canvas.width = bgImg.naturalWidth || 800;
+            canvas.height = bgImg.naturalHeight || 800;
+
+            // Draw Background (Mug)
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+            // Calculate Overlay Position based on Desktop CSS proportions
+            // CSS Container Height: 450px
+            // CSS Overlay: w=140px, h=150px
+            // CSS Margins from center: marginLeft=-30px, marginTop=15px
+            const scaleFactor = canvas.height / 450;
+
+            const drawWidth = 140 * scaleFactor;
+            const drawHeight = 150 * scaleFactor;
+
+            // Centered position calculation
+            // Base center X/Y
+            const centerX = (canvas.width - drawWidth) / 2;
+            const centerY = (canvas.height - drawHeight) / 2;
+
+            // Adjusted based on user feedback: vertical offset -50
+            const drawX = centerX - 0 * scaleFactor;
+            const drawY = centerY - 30 * scaleFactor;
+
+            ctx.drawImage(fgImg, drawX, drawY, drawWidth, drawHeight);
+
+            canvas.toBlob(
+              (blob) => {
+                URL.revokeObjectURL(croppedUrl);
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error("Could not create mockup blob"));
+                }
+              },
+              "image/jpeg", // Mockup can be JPEG as background is opaque usually, but mug might have transparency?
+              // Wait, Mug images are likely PNGs with transparency if they are cutouts.
+              // If the mug images provided (mug white.png) are actual cutouts, we should probably output PNG to keep transparency if the user wants to place it on another background later (though here it's for print).
+              // Reviewing Totebag: used JPEG 0.9.
+              // I'll stick to JPEG 0.9 for consistency with Totebag unless I see a reason not to.
+              // Actually, print service might want high quality.
+              0.9,
+            );
+          };
+
+          fgImg.onerror = () => {
+            URL.revokeObjectURL(croppedUrl);
+            reject(new Error("Could not load cropped image"));
+          };
+        };
+
+        bgImg.onerror = () => {
+          URL.revokeObjectURL(croppedUrl);
+          reject(new Error("Could not load mug background"));
+        };
+      } catch (error) {
+        reject(error);
+      }
     });
   };
 
@@ -228,8 +334,11 @@ const MugFlow = ({ id }: { id: number }) => {
       const processedPhotos = await Promise.all(
         photos.map(async (photo) => {
           const croppedImageBlob = await createCroppedImage(photo);
+          const mockupBlob = await createMockupImage(photo);
           return {
             croppedImageBlob,
+            mockupBlob,
+            rawFile: photo.file,
             printTypeId: photo.printTypeId,
             sizeId: photo.sizeId,
             orientation: photo.orientation,
@@ -249,6 +358,12 @@ const MugFlow = ({ id }: { id: number }) => {
       );
       formData.append("payment_method", contactData.paymentMethod);
 
+      const subtotal = getTotalPrice();
+      const deliveryCharge =
+        contactData.deliveryLocation === "outside_dhaka" ? 150 : 80;
+      const finalPrice = subtotal + deliveryCharge;
+      formData.append("price", finalPrice.toString());
+
       if (contactData.additionalInfo) {
         formData.append("additional_info", contactData.additionalInfo);
       }
@@ -262,14 +377,26 @@ const MugFlow = ({ id }: { id: number }) => {
           `documents[${index}][size_id]`,
           processed.sizeId.toString(),
         );
+        formData.append(`documents[${index}][frame_id]`, "");
         formData.append(
           `documents[${index}][orientation]`,
           processed.orientation,
         );
+        formData.append(`documents[${index}][bleed_type]`, "none");
+        formData.append(`documents[${index}][custom_size]`, "");
+
+        // 1. custom_file (Mug Mockup)
         formData.append(
-          `documents[${index}][file]`,
-          processed.croppedImageBlob,
-          `mug_${index + 1}.jpg`,
+          `documents[${index}][custom_file]`,
+          processed.mockupBlob,
+          `mug_mockup_${index + 1}.jpg`,
+        );
+
+        // 2. raw_file (User's Raw Upload)
+        formData.append(
+          `documents[${index}][raw_file]`,
+          processed.rawFile,
+          processed.rawFile.name,
         );
       });
 

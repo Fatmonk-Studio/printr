@@ -87,7 +87,7 @@ const products = [
     description: "Stylish tote bags with your custom designs",
     icon: ShoppingBag,
     gradient: "from-pink-500 to-rose-500",
-    comingSoon: true,
+    comingSoon: false,
   },
 ];
 
@@ -135,7 +135,7 @@ export const ProductSelectionModal = ({
                   "transition-all duration-300 ease-out",
                   "hover:scale-[1.02] active:scale-[0.98]",
                   "text-left",
-                  product.comingSoon && "opacity-90"
+                  product.comingSoon && "opacity-90",
                 )}
               >
                 {/* Coming Soon Badge */}
@@ -152,7 +152,7 @@ export const ProductSelectionModal = ({
                   className={cn(
                     "absolute inset-0 bg-gradient-to-br opacity-0",
                     "group-hover:opacity-10 transition-opacity duration-300",
-                    product.gradient
+                    product.gradient,
                   )}
                 />
 
@@ -163,7 +163,7 @@ export const ProductSelectionModal = ({
                       "w-12 h-12 rounded-lg flex items-center justify-center",
                       "bg-gradient-to-br shadow-lg",
                       "group-hover:scale-110 transition-transform duration-300",
-                      product.gradient
+                      product.gradient,
                     )}
                   >
                     <Icon className="w-6 h-6 text-white" />

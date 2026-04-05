@@ -33,27 +33,36 @@ export const Navigation = () => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link to="/">
-            <img 
-              className="h-10 w-auto cursor-pointer" 
-              src={isDark ? "/logo-white.png" : "/logo.png"} 
-              alt="Logo" 
+            <img
+              className="h-10 w-auto cursor-pointer"
+              src={isDark ? "/logo-white.png" : "/logo.png"}
+              alt="Logo"
             />
           </Link>
-          
+
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
+            <Link
+              to="/"
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
               Home
             </Link>
-            <Link to="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+            <Link
+              to="/pricing"
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
               Pricing
             </Link>
-            <Link to="/events" className="text-sm font-medium hover:text-primary transition-colors">
+            <Link
+              to="/events"
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
               Events
             </Link>
-            <Link to="/reviews" className="text-sm font-medium hover:text-primary transition-colors">
+            {/* <Link to="/reviews" className="text-sm font-medium hover:text-primary transition-colors">
               Review
-            </Link>
+            </Link> */}
           </div>
 
           {/* Desktop Actions */}
@@ -63,7 +72,11 @@ export const Navigation = () => {
               className="p-2 hover:bg-accent hover:text-white rounded-full transition-colors"
               aria-label="Toggle dark mode"
             >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5 hover:text-white" />}
+              {isDark ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5 hover:text-white" />
+              )}
             </button>
             <Link to="/contact">
               <Button size="default">Contact Us</Button>
@@ -77,9 +90,13 @@ export const Navigation = () => {
               className="p-2 hover:bg-accent hover:text-white rounded-full transition-colors"
               aria-label="Toggle dark mode"
             >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </button>
-            
+
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
@@ -92,40 +109,42 @@ export const Navigation = () => {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-6 mt-8">
-                  <Link 
-                    to="/" 
+                  <Link
+                    to="/"
                     onClick={handleLinkClick}
                     className="text-lg font-medium hover:text-primary transition-colors"
                   >
                     Home
                   </Link>
-                  <Link 
-                    to="/pricing" 
+                  <Link
+                    to="/pricing"
                     onClick={handleLinkClick}
                     className="text-lg font-medium hover:text-primary transition-colors"
                   >
                     Pricing
                   </Link>
-                  <Link 
-                    to="/events" 
+                  <Link
+                    to="/events"
                     onClick={handleLinkClick}
                     className="text-lg font-medium hover:text-primary transition-colors"
                   >
                     Events
                   </Link>
-                  <Link 
-                    to="/reviews" 
+                  <Link
+                    to="/reviews"
                     onClick={handleLinkClick}
                     className="text-lg font-medium hover:text-primary transition-colors"
                   >
                     Review
                   </Link>
-                  <Link 
-                    to="/contact" 
+                  <Link
+                    to="/contact"
                     onClick={handleLinkClick}
                     className="mt-4"
                   >
-                    <Button size="default" className="w-full">Contact Us</Button>
+                    <Button size="default" className="w-full">
+                      Contact Us
+                    </Button>
                   </Link>
                 </div>
               </SheetContent>

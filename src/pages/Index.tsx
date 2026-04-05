@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFlowLayout } from "@/components/ProductFlowLayout";
@@ -20,6 +20,7 @@ import { PlannerFlow } from "@/components/PlannerFlow";
 import MugFlow from "@/components/MugFlow";
 import TshirtFlow from "@/components/TshirtFlow";
 import TotebagFlow from "@/components/TotebagFlow";
+import { BackWarningDialog } from "@/components/BackWarningDialog";
 
 type ProductFlow =
   | "home"
@@ -32,78 +33,238 @@ type ProductFlow =
   | "tshirt"
   | "totebag";
 
+type ActiveProductFlow = Exclude<ProductFlow, "home">;
+
+const initialUnsavedState: Record<ActiveProductFlow, boolean> = {
+  print: false,
+  frame: false,
+  collage: false,
+  album: false,
+  planner: false,
+  mug: false,
+  tshirt: false,
+  totebag: false,
+};
+
 const Index = () => {
   const [currentFlow, setCurrentFlow] = useState<ProductFlow>("home");
+  const [unsavedByFlow, setUnsavedByFlow] = useState(initialUnsavedState);
+  const [showBrowserBackWarning, setShowBrowserBackWarning] = useState(false);
+  const browserFlowGuardActiveRef = useRef(false);
+  const suppressNextPopStateRef = useRef(false);
+
+  const setFlowUnsaved = (
+    flow: ActiveProductFlow,
+    hasUnsavedChanges: boolean,
+  ) => {
+    setUnsavedByFlow((prev) => {
+      if (prev[flow] === hasUnsavedChanges) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [flow]: hasUnsavedChanges,
+      };
+    });
+  };
 
   const handleProductClick = (productId: string) => {
+    if (productId in initialUnsavedState) {
+      if (!browserFlowGuardActiveRef.current) {
+        window.history.pushState(
+          { printrFlowGuard: true },
+          "",
+          window.location.href,
+        );
+        browserFlowGuardActiveRef.current = true;
+      }
+      setFlowUnsaved(productId as ActiveProductFlow, false);
+    }
     setCurrentFlow(productId as ProductFlow);
   };
 
   const handleBackToHome = () => {
+    if (browserFlowGuardActiveRef.current) {
+      suppressNextPopStateRef.current = true;
+      browserFlowGuardActiveRef.current = false;
+      window.history.back();
+    }
     setCurrentFlow("home");
+    setUnsavedByFlow(initialUnsavedState);
   };
 
+  const handleBrowserBackContinue = () => {
+    setShowBrowserBackWarning(false);
+    suppressNextPopStateRef.current = true;
+    browserFlowGuardActiveRef.current = false;
+    setUnsavedByFlow(initialUnsavedState);
+    setCurrentFlow("home");
+    window.history.back();
+  };
+
+  const handleBrowserBackCancel = () => {
+    setShowBrowserBackWarning(false);
+    suppressNextPopStateRef.current = true;
+    window.history.forward();
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (suppressNextPopStateRef.current) {
+        suppressNextPopStateRef.current = false;
+        return;
+      }
+
+      if (currentFlow === "home") {
+        return;
+      }
+
+      suppressNextPopStateRef.current = true;
+      window.history.forward();
+      setShowBrowserBackWarning(true);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [currentFlow]);
+
+  let flowContent: React.ReactNode = null;
+
   if (currentFlow === "print") {
-    return (
-      <ProductFlowLayout title="Print Photo" onBack={handleBackToHome}>
-        <PrintPhotoFlow id={1} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Print Photo"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.print}
+      >
+        <PrintPhotoFlow
+          id={1}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("print", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "frame") {
-    return (
-      <ProductFlowLayout title="Frame" onBack={handleBackToHome}>
-        <FrameFlow id={2} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Frame"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.frame}
+      >
+        <FrameFlow
+          id={2}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("frame", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "collage") {
-    return (
-      <ProductFlowLayout title="Collage" onBack={handleBackToHome}>
-        <CollageFlow id={3} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Collage"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.collage}
+      >
+        <CollageFlow
+          id={3}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("collage", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "album") {
-    return (
-      <ProductFlowLayout title="Album" onBack={handleBackToHome}>
-        <AlbumFlow id={4} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Album"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.album}
+      >
+        <AlbumFlow
+          id={4}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("album", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "planner") {
-    return (
-      <ProductFlowLayout title="Planner" onBack={handleBackToHome}>
-        <PlannerFlow id={5} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Planner"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.planner}
+      >
+        <PlannerFlow
+          id={5}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("planner", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "mug") {
-    return (
-      <ProductFlowLayout title="Mug" onBack={handleBackToHome}>
-        <MugFlow id={6} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Mug"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.mug}
+      >
+        <MugFlow
+          id={6}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("mug", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "tshirt") {
-    return (
-      <ProductFlowLayout title="T-Shirt" onBack={handleBackToHome}>
-        <TshirtFlow id={7} />
+    flowContent = (
+      <ProductFlowLayout
+        title="T-Shirt"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.tshirt}
+      >
+        <TshirtFlow
+          id={7}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("tshirt", value)}
+        />
       </ProductFlowLayout>
     );
   }
 
   if (currentFlow === "totebag") {
-    return (
-      <ProductFlowLayout title="Tote Bag" onBack={handleBackToHome}>
-        <TotebagFlow id={8} />
+    flowContent = (
+      <ProductFlowLayout
+        title="Tote Bag"
+        onBack={handleBackToHome}
+        hasUnsavedChanges={unsavedByFlow.totebag}
+      >
+        <TotebagFlow
+          id={8}
+          onUnsavedChangesChange={(value) => setFlowUnsaved("totebag", value)}
+        />
       </ProductFlowLayout>
+    );
+  }
+
+  if (currentFlow !== "home") {
+    return (
+      <>
+        {flowContent}
+        <BackWarningDialog
+          open={showBrowserBackWarning}
+          onOpenChange={setShowBrowserBackWarning}
+          onContinue={handleBrowserBackContinue}
+          onCancel={handleBrowserBackCancel}
+        />
+      </>
     );
   }
 
@@ -118,6 +279,12 @@ const Index = () => {
       <HowItWorks />
       <CallToAction onProductSelect={handleProductClick} />
       <Footer />
+      <BackWarningDialog
+        open={showBrowserBackWarning}
+        onOpenChange={setShowBrowserBackWarning}
+        onContinue={handleBrowserBackContinue}
+        onCancel={handleBrowserBackCancel}
+      />
 
       {/* <section className="relative overflow-hidden">
         <div className="absolute inset-0">

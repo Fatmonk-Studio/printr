@@ -55,10 +55,15 @@ interface TshirtItem {
   back: ImageSlot;
 }
 
+interface TshirtFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
 // Mobile scaling factor
 const MOBILE_SCALE_FACTOR = 0.65;
 
-const TshirtFlow = ({ id }: { id: number }) => {
+const TshirtFlow = ({ id, onUnsavedChangesChange }: TshirtFlowProps) => {
   const [items, setItems] = useState<TshirtItem[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
@@ -67,6 +72,11 @@ const TshirtFlow = ({ id }: { id: number }) => {
   const [activeSlot, setActiveSlot] = useState<
     Record<string, "logo" | "front" | "back" | null>
   >({});
+  const hasUnsavedChanges = items.length > 0 || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Fetch print types and sizes from API
   useEffect(() => {
@@ -264,13 +274,20 @@ const TshirtFlow = ({ id }: { id: number }) => {
       formData.append("name", contactData.name);
       formData.append("email", contactData.email);
       formData.append("phone", contactData.phone);
-      formData.append("service_id", "6"); // Assuming 6 for T-shirt
+      formData.append("service_id", id.toString());
       formData.append("location", contactData.location);
       formData.append(
         "delivery_type",
         contactData.deliveryLocation || "inside_dhaka",
       );
       formData.append("payment_method", contactData.paymentMethod);
+
+      const subtotal = getTotalPrice();
+      const deliveryCharge =
+        contactData.deliveryLocation === "outside_dhaka" ? 150 : 80;
+      const finalPrice = subtotal + deliveryCharge;
+      formData.append("price", finalPrice.toString());
+
       if (contactData.additionalInfo)
         formData.append("additional_info", contactData.additionalInfo);
 
@@ -281,6 +298,10 @@ const TshirtFlow = ({ id }: { id: number }) => {
           item.printTypeId.toString(),
         );
         formData.append(`documents[${i}][size_id]`, item.sizeId.toString());
+        formData.append(`documents[${i}][frame_id]`, "");
+        formData.append(`documents[${i}][orientation]`, "vertical");
+        formData.append(`documents[${i}][bleed_type]`, "none");
+        formData.append(`documents[${i}][custom_size]`, "");
 
         if (item.logo.preview && item.logo.file) {
           const blob = await createCroppedImage(

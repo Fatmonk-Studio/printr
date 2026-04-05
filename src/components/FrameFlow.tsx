@@ -49,6 +49,11 @@ interface PrintType {
   size: PrintSize[];
 }
 
+interface FrameFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
 const bleeds: Record<BleedType, { name: string }> = {
   "no-bleed": { name: "No Bleed" },
   "small-bleed": { name: "Small Bleed" },
@@ -141,7 +146,7 @@ const getPreviewDimensions = (
   };
 };
 
-export const FrameFlow = ({ id }: { id: number }) => {
+export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [frames, setFrames] = useState<Frame[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
@@ -149,6 +154,11 @@ export const FrameFlow = ({ id }: { id: number }) => {
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const hasUnsavedChanges = photos.length > 0 || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Detect mobile screen size
   useEffect(() => {

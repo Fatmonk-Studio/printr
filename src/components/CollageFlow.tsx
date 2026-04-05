@@ -89,7 +89,15 @@ interface ImageTransformData {
   position: { x: number; y: number };
 }
 
-export const CollageFlow = ({ id }: { id: number }) => {
+interface CollageFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
+export const CollageFlow = ({
+  id,
+  onUnsavedChangesChange,
+}: CollageFlowProps) => {
   const [images, setImages] = useState<string[]>([]);
   const [selectedImg, setSelectedImg] = useState<File[]>([]);
   const [selectedShape, setSelectedShape] = useState<Shape>("square");
@@ -110,6 +118,17 @@ export const CollageFlow = ({ id }: { id: number }) => {
   const [useCustomSize, setUseCustomSize] = useState(false);
   const [customSize, setCustomSize] = useState({ width: "12", height: "12" });
   const collageRef = useRef<HTMLDivElement>(null);
+  const hasUnsavedChanges =
+    images.length > 0 ||
+    selectedImg.length > 0 ||
+    showCollage ||
+    showContactForm ||
+    imageTransforms.size > 0 ||
+    capturedCollageBlob !== null;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Fetch print types and sizes from API
   useEffect(() => {

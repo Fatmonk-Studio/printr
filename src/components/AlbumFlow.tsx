@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,12 @@ const PAGE_OPTIONS = [4, 8, 12, 16, 20, 24, 28];
 const PRICE_PER_PAGE = 100; // tk per page
 const BASE_PRICE = 1000; // tk base price
 
-export const AlbumFlow = ({ id }: { id: number }) => {
+interface AlbumFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
+export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
   const [step, setStep] = useState(1);
   const [shape, setShape] = useState<"square" | "rectangle">("square");
   const [coverImage, setCoverImage] = useState<string | File | null>(null);
@@ -36,6 +41,16 @@ export const AlbumFlow = ({ id }: { id: number }) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [draggedImage, setDraggedImage] = useState<File | null>(null);
+  const hasUnsavedChanges =
+    step > 1 ||
+    coverImage !== null ||
+    uploadedPhotos.length > 0 ||
+    pages.length > 0 ||
+    showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   const handleCoverSelected = (cover: string | File, coverIdParam?: number) => {
     setCoverImage(cover);

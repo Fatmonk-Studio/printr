@@ -50,15 +50,25 @@ interface PhotoItem {
   orientation: "horizontal" | "vertical";
 }
 
+interface TotebagFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
 // Mobile scaling factor
 const MOBILE_SCALE_FACTOR = 0.65;
 
-const TotebagFlow = ({ id }: { id: number }) => {
+const TotebagFlow = ({ id, onUnsavedChangesChange }: TotebagFlowProps) => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
   const [loadingPrintTypes, setLoadingPrintTypes] = useState(true);
   const [showContactForm, setShowContactForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const hasUnsavedChanges = photos.length > 0 || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   // Fetch print types and sizes from API
   useEffect(() => {
@@ -226,7 +236,7 @@ const TotebagFlow = ({ id }: { id: number }) => {
               reject(new Error("Could not create blob"));
             }
           },
-          "image/jpeg",
+          "image/png",
           0.95,
         );
       };
@@ -236,15 +246,93 @@ const TotebagFlow = ({ id }: { id: number }) => {
     });
   };
 
+  const createMockupImage = async (photo: PhotoItem): Promise<Blob> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const croppedBlob = await createCroppedImage(photo);
+        const croppedUrl = URL.createObjectURL(croppedBlob);
+
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        const printType = getPrintTypeById(photo.printTypeId);
+        bgImg.src = getTotebagMockupImage(printType);
+
+        bgImg.onload = () => {
+          const fgImg = new Image();
+          fgImg.src = croppedUrl;
+
+          fgImg.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            if (!ctx) {
+              URL.revokeObjectURL(croppedUrl);
+              reject(new Error("Could not get canvas context"));
+              return;
+            }
+
+            // Use the natural size of the totebag image for high quality
+            canvas.width = bgImg.naturalWidth || 800;
+            canvas.height = bgImg.naturalHeight || 800;
+
+            // Draw Background (Totebag)
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+            // Calculate Overlay Position based on Desktop CSS proportions
+            // CSS Container Height: 450px
+            // CSS Overlay: w=170px, h=180px, top=120px
+            const scaleFactor = canvas.height / 450;
+
+            const drawWidth = 170 * scaleFactor;
+            const drawHeight = 180 * scaleFactor;
+            const drawY = 150 * scaleFactor;
+            const drawX = (canvas.width - drawWidth) / 2; // Center horizontally
+
+            ctx.drawImage(fgImg, drawX, drawY, drawWidth, drawHeight);
+
+            canvas.toBlob(
+              (blob) => {
+                URL.revokeObjectURL(croppedUrl);
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error("Could not create mockup blob"));
+                }
+              },
+              "image/jpeg",
+              0.9,
+            );
+          };
+
+          fgImg.onerror = () => {
+            URL.revokeObjectURL(croppedUrl);
+            reject(new Error("Could not load cropped image"));
+          };
+        };
+
+        bgImg.onerror = () => {
+          URL.revokeObjectURL(croppedUrl);
+          reject(new Error("Could not load totebag background"));
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   const handleSubmitOrder = async (contactData: ContactFormData) => {
     try {
       toast.loading("Submitting your order...");
 
       const processedPhotos = await Promise.all(
         photos.map(async (photo) => {
+          // Keep sending crop reference just in case, but we focus on custom_file/raw_file
           const croppedImageBlob = await createCroppedImage(photo);
+          const mockupBlob = await createMockupImage(photo);
           return {
             croppedImageBlob,
+            mockupBlob,
+            rawFile: photo.file,
             printTypeId: photo.printTypeId,
             sizeId: photo.sizeId,
             orientation: photo.orientation,
@@ -264,6 +352,12 @@ const TotebagFlow = ({ id }: { id: number }) => {
       );
       formData.append("payment_method", contactData.paymentMethod);
 
+      const subtotal = getTotalPrice();
+      const deliveryCharge =
+        contactData.deliveryLocation === "outside_dhaka" ? 150 : 80;
+      const finalPrice = subtotal + deliveryCharge;
+      formData.append("price", finalPrice.toString());
+
       if (contactData.additionalInfo) {
         formData.append("additional_info", contactData.additionalInfo);
       }
@@ -277,18 +371,29 @@ const TotebagFlow = ({ id }: { id: number }) => {
           `documents[${index}][size_id]`,
           processed.sizeId.toString(),
         );
+        formData.append(`documents[${index}][frame_id]`, "");
         formData.append(
           `documents[${index}][orientation]`,
           processed.orientation,
         );
+        formData.append(`documents[${index}][bleed_type]`, "none");
+        formData.append(`documents[${index}][custom_size]`, "");
+
+        // 1. custom_file (Canvas Mockup)
         formData.append(
-          `documents[${index}][file]`,
-          processed.croppedImageBlob,
-          `totebag_${index + 1}.jpg`,
+          `documents[${index}][custom_file]`,
+          processed.mockupBlob,
+          `totebag_mockup_${index + 1}.jpg`,
+        );
+
+        // 2. raw_file (User's Raw Upload)
+        formData.append(
+          `documents[${index}][raw_file]`,
+          processed.rawFile,
+          processed.rawFile.name,
         );
       });
 
-      // Using the same endpoint as FrameFlow
       const response = await fetch(
         "https://admin.printr.store/api/service/submit",
         {
@@ -499,9 +604,7 @@ const TotebagFlow = ({ id }: { id: number }) => {
                   {/* Zoom Controls */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="font-medium">
-                        Adjust Image Size (Zoom)
-                      </span>
+                      <span className="font-medium">Adjust Image Size</span>
                       <span className="text-muted-foreground">
                         {Math.round((photo.cropData?.scale || 1) * 100)}%
                       </span>

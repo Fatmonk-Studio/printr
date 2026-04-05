@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ContactForm, ContactFormData } from "./ContactForm";
@@ -52,12 +52,25 @@ const PLANNER_OPTIONS: PlannerOption[] = [
   },
 ];
 
-export const PlannerFlow = ({ id }: { id: number }) => {
+interface PlannerFlowProps {
+  id: number;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
+}
+
+export const PlannerFlow = ({
+  id,
+  onUnsavedChangesChange,
+}: PlannerFlowProps) => {
   const [selectedPlanner, setSelectedPlanner] = useState<PlannerOption | null>(
     null,
   );
   const [showContactForm, setShowContactForm] = useState(false);
   const [previewPlannerId, setPreviewPlannerId] = useState<string | null>(null);
+  const hasUnsavedChanges = selectedPlanner !== null || showContactForm;
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   const handlePreviewPDF = (planner: PlannerOption) => {
     setPreviewPlannerId(planner.id);
