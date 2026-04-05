@@ -759,7 +759,7 @@ export const PrintPhotoFlow = ({
           <div className="flex justify-between items-center p-6 bg-card rounded-lg border">
             <div>
               <p className="text-lg font-semibold">
-                Total: {getTotalPrice()} tk
+                Total: {getTotalPrice().toFixed(2)} tk
               </p>
               <p className="text-muted-foreground">{photos.length} photo(s)</p>
             </div>

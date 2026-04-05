@@ -1184,7 +1184,7 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 p-4 sm:p-6 bg-card rounded-lg border">
             <div>
               <p className="text-base sm:text-lg font-semibold">
-                Total: {getTotalPrice()} tk
+                Total: {getTotalPrice().toFixed(2)} tk
               </p>
               <p className="text-sm text-muted-foreground">
                 {photos.length} framed photo(s)

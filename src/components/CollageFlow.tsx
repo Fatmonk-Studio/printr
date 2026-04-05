@@ -921,7 +921,7 @@ export const CollageFlow = ({
                 </p>
               </div>
               <span className="text-sm font-medium">
-                {getTotalPrice().toFixed(0)} tk
+                {getTotalPrice().toFixed(2)} tk
               </span>
             </div>
           </div>
@@ -1261,7 +1261,7 @@ export const CollageFlow = ({
           <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
             <div>
               <p className="text-lg font-semibold">
-                Total: {getTotalPrice().toFixed(0)} tk
+                Total: {getTotalPrice().toFixed(2)} tk
               </p>
               <p className="text-muted-foreground">
                 {useCustomSize
