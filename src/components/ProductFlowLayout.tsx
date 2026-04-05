@@ -31,7 +31,7 @@ export const ProductFlowLayout = ({
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Products
+            Back to Home
           </Button>
           <h1 className="text-3xl font-bold text-foreground">{title}</h1>
         </div>

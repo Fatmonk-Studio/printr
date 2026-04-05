@@ -21,7 +21,8 @@ interface AlbumPage {
   images: (ImageData | null)[];
 }
 
-const PAGE_OPTIONS = [4, 8, 12, 16, 20, 24, 28];
+// const PAGE_OPTIONS = [4, 8, 12, 16, 20, 24, 28];
+const PAGE_OPTIONS = [4, 8, 12, 16, 20];
 const PRICE_PER_PAGE = 100; // tk per page
 const BASE_PRICE = 1000; // tk base price
 
@@ -412,8 +413,11 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       if (coverId) {
         formData.append("documents[0][album_id]", coverId.toString());
       } else if (coverImage instanceof File) {
-        // If custom cover, we could upload it or use a placeholder
-        formData.append("documents[0][album_custom_cover]", coverImage.name);
+        formData.append(
+          "documents[0][album_custom_cover]",
+          coverImage,
+          coverImage.name,
+        );
       }
 
       formData.append(
@@ -509,13 +513,17 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
     (l) => l.id === pages[currentPageIndex]?.layoutId,
   );
   const layoutPositions = currentLayout ? currentLayout[shape] : [];
+  const isLastPage = currentPageIndex === pageCount - 1;
+  const allPagesHaveImages =
+    pages.length > 0 &&
+    pages.every((page) => page.images.some((img) => img !== null));
 
   return (
     <div className="space-y-6">
       {/* Step 1: Shape Selection */}
       {step === 1 && (
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4">
             Step 1: Choose Album Shape
           </h2>
           <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
@@ -545,9 +553,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
 
       {/* Step 2: Cover Selection */}
       {step === 2 && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold">
+        <Card className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">
               Step 2: Select Cover Image
             </h2>
             <Button variant="outline" onClick={() => setStep(1)}>
@@ -571,27 +579,27 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
 
       {/* Step 3: Page Count Selection */}
       {step === 3 && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold">
+        <Card className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">
               Step 3: Select Number of Pages
             </h2>
             <Button variant="outline" onClick={() => setStep(2)}>
               Back
             </Button>
           </div>
-          <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 sm:gap-3 mb-6">
             {PAGE_OPTIONS.map((count) => (
               <button
                 key={count}
                 onClick={() => setPageCount(count)}
-                className={`p-4 border-2 rounded-lg transition-all ${
+                className={`p-3 sm:p-4 border-2 rounded-lg transition-all ${
                   pageCount === count
                     ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                     : "border-border hover:border-primary/50"
                 }`}
               >
-                <p className="text-2xl font-bold">{count}</p>
+                <p className="text-xl sm:text-2xl font-bold">{count}</p>
                 <p className="text-xs text-muted-foreground">pages</p>
               </button>
             ))}
@@ -614,7 +622,7 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       {step === 4 && pages.length > 0 && (
         <>
           {/* Photo Upload Section */}
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h3 className="text-lg font-semibold mb-4">Upload Photos</h3>
             <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mb-4">
               <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
@@ -637,7 +645,7 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {uploadedPhotos.length > 0 && (
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                 {uploadedPhotos.map((photo, index) => (
                   <div key={index} className="aspect-square">
                     <img
@@ -652,8 +660,8 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
           </Card>
 
           {/* Page Editor */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold">
                 Page {currentPageIndex + 1} of {pageCount}
               </h3>
@@ -686,22 +694,23 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             {/* Layout Selection */}
             <div className="mb-4">
               <Label className="mb-2 block">Select Page Layout</Label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                 {ALBUM_LAYOUTS.map((layout) => (
                   <button
                     key={layout.id}
                     onClick={() =>
                       updatePageLayout(currentPageIndex, layout.id)
                     }
-                    className={`p-3 border rounded-lg text-center transition-all ${
+                    className={`p-2.5 sm:p-3 border rounded-lg text-center transition-all min-h-[64px] sm:min-h-[72px] flex items-center justify-center ${
                       pages[currentPageIndex].layoutId === layout.id
                         ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="text-xs font-medium">
-                      {layout.imageCount}{" "}
-                      {layout.imageCount === 1 ? "Image" : "Images"}
+                    <p className="text-xs sm:text-sm font-medium leading-tight break-words">
+                      {/* {layout.imageCount}{" "} */}
+                      {/* {layout.imageCount === 1 ? "Image" : "Images"} */}
+                      {layout.name}
                     </p>
                   </button>
                 ))}
@@ -709,9 +718,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {/* Page Preview */}
-            <div className="bg-muted/30 rounded-lg p-8 min-h-[500px] flex items-center justify-center">
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-5 md:p-8 min-h-[320px] sm:min-h-[420px] md:min-h-[500px] flex items-center justify-center">
               <div
-                className={`bg-white shadow-xl rounded-lg p-6 w-full max-w-2xl relative ${
+                className={`bg-white shadow-xl rounded-lg p-3 sm:p-4 md:p-6 w-full max-w-2xl relative ${
                   shape === "square" ? "aspect-square" : "aspect-[4/3]"
                 }`}
               >
@@ -790,9 +799,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center p-4 bg-muted rounded-lg mt-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 bg-muted rounded-lg mt-6">
               <div>
-                <p className="text-lg font-semibold">
+                <p className="text-base sm:text-lg font-semibold">
                   Total: {getTotalPrice()} tk
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -803,9 +812,17 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
               <Button
                 variant="hero"
                 size="lg"
-                onClick={() => setShowContactForm(true)}
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  if (!isLastPage) {
+                    setCurrentPageIndex(currentPageIndex + 1);
+                  } else {
+                    setShowContactForm(true);
+                  }
+                }}
+                disabled={isLastPage && !allPagesHaveImages}
               >
-                Continue to Contact Info
+                {isLastPage ? "Continue to Contact Info" : "Next Page"}
               </Button>
             </div>
           </Card>

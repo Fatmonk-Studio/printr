@@ -18,7 +18,7 @@ export const ALBUM_LAYOUTS: LayoutTemplate[] = [
   // 2 Image Layouts
   {
     id: "double-1",
-    name: "Two Horizontal",
+    name: "Two Vertical",
     imageCount: 2,
     square: [
       { x: 5, y: 10, width: 42.5, height: 80 },
@@ -31,7 +31,7 @@ export const ALBUM_LAYOUTS: LayoutTemplate[] = [
   },
   {
     id: "double-2",
-    name: "Two Vertical",
+    name: "Two Horizontal",
     imageCount: 2,
     square: [
       { x: 10, y: 5, width: 80, height: 42.5 },
@@ -117,14 +117,14 @@ export const ALBUM_LAYOUTS: LayoutTemplate[] = [
       { x: 5, y: 5, width: 55, height: 55 },
       { x: 65, y: 5, width: 30, height: 26.25 },
       { x: 65, y: 33.75, width: 30, height: 26.25 },
-      { x: 5, y: 65, width: 30, height: 30 },
+      { x: 5, y: 65, width: 55, height: 30 },
       { x: 65, y: 65, width: 30, height: 30 },
     ],
     rectangle: [
       { x: 5, y: 10, width: 55, height: 50 },
       { x: 65, y: 10, width: 30, height: 23.75 },
       { x: 65, y: 36.25, width: 30, height: 23.75 },
-      { x: 5, y: 65, width: 30, height: 25 },
+      { x: 5, y: 65, width: 55, height: 25 },
       { x: 65, y: 65, width: 30, height: 25 },
     ],
   },
