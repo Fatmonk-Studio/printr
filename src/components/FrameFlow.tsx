@@ -305,22 +305,36 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
     return printType?.size || [];
   };
 
-  const getExtraLargePrice = (): number => {
-    // Find Extra Large size across all print types
-    for (const printType of printTypes) {
-      const extraLargeSize = printType.size.find(
-        (s) => s.name === "Extra Large",
-      );
-      if (extraLargeSize) {
-        return parseFloat(extraLargeSize.price);
-      }
+  const getCustomRatePerArea = (printTypeName?: string): number => {
+    switch ((printTypeName || "").toLowerCase()) {
+      case "matte paper":
+        return 3.01;
+      case "glossy paper":
+        return 4.27;
+      case "dry matte paper":
+        return 6.01;
+      default:
+        return 0;
     }
-    return 0;
   };
 
-  const getCustomSizePrice = (): number => {
-    const extraLargePrice = getExtraLargePrice();
-    return extraLargePrice + 200;
+  const getCustomSizePrice = (photo: PhotoItem): number => {
+    if (!photo.customSize) {
+      return 0;
+    }
+
+    const width = parseFloat(photo.customSize.width);
+    const height = parseFloat(photo.customSize.height);
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return 0;
+    }
+
+    const area = width * height;
+    const printTypeName = getPrintTypeById(photo.printTypeId)?.name;
+    const ratePerArea = getCustomRatePerArea(printTypeName);
+
+    return area * ratePerArea;
   };
 
   const getFramePrice = (sizeName: string): number => {
@@ -355,7 +369,7 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
 
       let sizePrice = 0;
       if (photo.useCustomSize) {
-        sizePrice = getCustomSizePrice();
+        sizePrice = getCustomSizePrice(photo);
       } else {
         const size = getSizeById(photo.sizeId);
         sizePrice = size ? parseFloat(size.price) : 0;
@@ -499,9 +513,14 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
         const photo = photos[index];
 
         if (photo.useCustomSize && photo.customSize) {
+          const customPrice = getCustomSizePrice(photo);
           formData.append(
             `documents[${index}][custom_size]`,
             `${photo.customSize.width}x${photo.customSize.height}`,
+          );
+          formData.append(
+            `documents[${index}][custom_price]`,
+            customPrice.toFixed(2),
           );
         } else {
           formData.append(
@@ -593,7 +612,7 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
               let sizeDisplay = "";
 
               if (photo.useCustomSize && photo.customSize) {
-                sizePrice = getCustomSizePrice();
+                sizePrice = getCustomSizePrice(photo);
                 sizeDisplay = `Custom Size (${photo.customSize.width}" x ${photo.customSize.height}")`;
               } else {
                 const size = getSizeById(photo.sizeId);
@@ -1125,12 +1144,11 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
                       let sizeName = "";
 
                       if (photo.useCustomSize && photo.customSize) {
-                        sizePrice = getCustomSizePrice();
+                        sizePrice = getCustomSizePrice(photo);
                         sizeName = "12L"; // Custom sizes use 12L frame pricing
-                        const extraLargePrice = getExtraLargePrice();
                         sizeInfo = `Custom: ${photo.customSize.width}" x ${
                           photo.customSize.height
-                        }" (Extra Large: ${extraLargePrice.toFixed(0)} + 200)`;
+                        }"`;
                       } else {
                         const size = getSizeById(photo.sizeId);
                         sizePrice = size ? parseFloat(size.price) : 0;

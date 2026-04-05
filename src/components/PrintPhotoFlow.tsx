@@ -181,15 +181,42 @@ export const PrintPhotoFlow = ({
     return 0;
   };
 
-  const getCustomSizePrice = (): number => {
-    const extraLargePrice = getExtraLargePrice();
-    return extraLargePrice + 200;
+  const getCustomRatePerArea = (printTypeName?: string): number => {
+    switch ((printTypeName || "").toLowerCase()) {
+      case "matte paper":
+        return 3.01;
+      case "glossy paper":
+        return 4.27;
+      case "dry matte paper":
+        return 6.01;
+      default:
+        return 0;
+    }
+  };
+
+  const getCustomSizePrice = (photo: PhotoItem): number => {
+    if (!photo.customSize) {
+      return 0;
+    }
+
+    const width = parseFloat(photo.customSize.width);
+    const height = parseFloat(photo.customSize.height);
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return 0;
+    }
+
+    const area = width * height;
+    const printTypeName = getPrintTypeById(photo.printTypeId)?.name;
+    const ratePerArea = getCustomRatePerArea(printTypeName);
+
+    return area * ratePerArea;
   };
 
   const getTotalPrice = () => {
     return photos.reduce((total, photo) => {
       if (photo.useCustomSize) {
-        return total + getCustomSizePrice();
+        return total + getCustomSizePrice(photo);
       }
       const size = getSizeById(photo.sizeId);
       return total + (size ? parseFloat(size.price) : 0);
@@ -352,10 +379,15 @@ export const PrintPhotoFlow = ({
         if (photo.useCustomSize && photo.customSize) {
           const customDimension = `${photo.customSize.width}" x ${photo.customSize.height}"`;
           orientation = getOrientation(customDimension);
+          const customPrice = getCustomSizePrice(photo);
           formData.append(`documents[${index}][size_id]`, ""); // Empty for custom size
           formData.append(
             `documents[${index}][custom_size]`,
             `${photo.customSize.width}x${photo.customSize.height}`,
+          );
+          formData.append(
+            `documents[${index}][custom_price]`,
+            customPrice.toFixed(2),
           );
         } else {
           const size = getSizeById(photo.sizeId);
@@ -430,7 +462,7 @@ export const PrintPhotoFlow = ({
           <div className="space-y-2">
             {photos.map((photo) => {
               if (photo.useCustomSize && photo.customSize) {
-                const customPrice = getCustomSizePrice();
+                const customPrice = getCustomSizePrice(photo);
                 return (
                   <div
                     key={photo.id}
@@ -683,8 +715,7 @@ export const PrintPhotoFlow = ({
 
                   {(() => {
                     if (photo.useCustomSize && photo.customSize) {
-                      const customPrice = getCustomSizePrice();
-                      const extraLargePrice = getExtraLargePrice();
+                      const customPrice = getCustomSizePrice(photo);
                       return (
                         <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
                           <div>
@@ -693,8 +724,7 @@ export const PrintPhotoFlow = ({
                             </span>
                             <p className="text-sm text-muted-foreground">
                               Custom Size ({photo.customSize.width}" x{" "}
-                              {photo.customSize.height}") - Extra Large:{" "}
-                              {extraLargePrice.toFixed(0)} + 200
+                              {photo.customSize.height}")
                             </p>
                           </div>
                           <span className="text-xl font-bold text-primary">

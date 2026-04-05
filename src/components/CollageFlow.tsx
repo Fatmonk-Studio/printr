@@ -604,22 +604,32 @@ export const CollageFlow = ({
     return printType?.size || [];
   };
 
-  const getExtraLargePrice = (): number => {
-    // Find Extra Large size across all print types
-    for (const printType of printTypes) {
-      const extraLargeSize = printType.size.find(
-        (s) => s.name === "Extra Large",
-      );
-      if (extraLargeSize) {
-        return parseFloat(extraLargeSize.price);
-      }
+  const getCustomRatePerArea = (printTypeName?: string): number => {
+    switch ((printTypeName || "").toLowerCase()) {
+      case "matte paper":
+        return 3.01;
+      case "glossy paper":
+        return 4.27;
+      case "dry matte paper":
+        return 6.01;
+      default:
+        return 0;
     }
-    return 0;
   };
 
   const getCustomSizePrice = (): number => {
-    const extraLargePrice = getExtraLargePrice();
-    return extraLargePrice + 200;
+    const width = parseFloat(customSize.width);
+    const height = parseFloat(customSize.height);
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return 0;
+    }
+
+    const area = width * height;
+    const printTypeName = getPrintTypeById(selectedPrintTypeId)?.name;
+    const ratePerArea = getCustomRatePerArea(printTypeName);
+
+    return area * ratePerArea;
   };
 
   const getTotalPrice = () => {
@@ -833,10 +843,12 @@ export const CollageFlow = ({
 
       // Add collage document with print type and size
       if (useCustomSize) {
+        const customPrice = getCustomSizePrice();
         formData.append(
           "documents[0][custom_size]",
           `${customSize.width}x${customSize.height}`,
         );
+        formData.append("documents[0][custom_price]", customPrice.toFixed(2));
       } else {
         formData.append("documents[0][size_id]", selectedSizeId.toString());
       }
@@ -1199,9 +1211,6 @@ export const CollageFlow = ({
                       >
                         Use Custom Size
                       </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Extra Large + 200 tk
-                      </p>
                     </div>
                   </div>
 
