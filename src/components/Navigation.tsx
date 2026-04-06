@@ -130,13 +130,13 @@ export const Navigation = () => {
                   >
                     Events
                   </Link>
-                  <Link
+                  {/* <Link
                     to="/reviews"
                     onClick={handleLinkClick}
                     className="text-lg font-medium hover:text-primary transition-colors"
                   >
                     Review
-                  </Link>
+                  </Link> */}
                   <Link
                     to="/contact"
                     onClick={handleLinkClick}
