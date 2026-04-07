@@ -1,11 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFlowLayout } from "@/components/ProductFlowLayout";
-import { PrintPhotoFlow } from "@/components/PrintPhotoFlow";
-import { FrameFlow } from "@/components/FrameFlow";
-import { CollageFlow } from "@/components/CollageFlow";
-import { AlbumFlow } from "@/components/AlbumFlow";
 
 import { Image, Frame, Grid3X3, BookOpen } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
@@ -16,11 +12,43 @@ import { Services } from "@/components/Services";
 import { HowItWorks } from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import CallToAction from "@/components/CallToAction";
-import { PlannerFlow } from "@/components/PlannerFlow";
-import MugFlow from "@/components/MugFlow";
-import TshirtFlow from "@/components/TshirtFlow";
-import TotebagFlow from "@/components/TotebagFlow";
 import { BackWarningDialog } from "@/components/BackWarningDialog";
+
+const PrintPhotoFlow = lazy(() =>
+  import("@/components/PrintPhotoFlow").then((module) => ({
+    default: module.PrintPhotoFlow,
+  })),
+);
+
+const FrameFlow = lazy(() =>
+  import("@/components/FrameFlow").then((module) => ({
+    default: module.FrameFlow,
+  })),
+);
+
+const CollageFlow = lazy(() =>
+  import("@/components/CollageFlow").then((module) => ({
+    default: module.CollageFlow,
+  })),
+);
+
+const AlbumFlow = lazy(() =>
+  import("@/components/AlbumFlow").then((module) => ({
+    default: module.AlbumFlow,
+  })),
+);
+
+const PlannerFlow = lazy(() =>
+  import("@/components/PlannerFlow").then((module) => ({
+    default: module.PlannerFlow,
+  })),
+);
+
+const MugFlow = lazy(() => import("@/components/MugFlow"));
+
+const TshirtFlow = lazy(() => import("@/components/TshirtFlow"));
+
+const TotebagFlow = lazy(() => import("@/components/TotebagFlow"));
 
 type ProductFlow =
   | "home"
@@ -45,6 +73,19 @@ const initialUnsavedState: Record<ActiveProductFlow, boolean> = {
   tshirt: false,
   totebag: false,
 };
+
+const FlowLoadingState = () => (
+  <div className="min-h-screen bg-gradient-subtle flex items-center justify-center px-4">
+    <div className="rounded-2xl border border-border bg-background/80 backdrop-blur-sm px-6 py-5 shadow-lg">
+      <p className="text-sm font-medium text-foreground">
+        Loading product editor...
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Preparing the selected workflow.
+      </p>
+    </div>
+  </div>
+);
 
 const Index = () => {
   const [currentFlow, setCurrentFlow] = useState<ProductFlow>("home");
@@ -129,6 +170,29 @@ const Index = () => {
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
+    };
+  }, [currentFlow]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (currentFlow === "home") {
+        return;
+      }
+
+      // Browsers only allow a native confirmation dialog during unload.
+      event.preventDefault();
+      const warningMessage =
+        "Leaving this page will discard your current progress.";
+      event.returnValue = warningMessage;
+      return warningMessage;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.onbeforeunload = handleBeforeUnload;
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.onbeforeunload = null;
     };
   }, [currentFlow]);
 
@@ -256,15 +320,17 @@ const Index = () => {
 
   if (currentFlow !== "home") {
     return (
-      <>
-        {flowContent}
-        <BackWarningDialog
-          open={showBrowserBackWarning}
-          onOpenChange={setShowBrowserBackWarning}
-          onContinue={handleBrowserBackContinue}
-          onCancel={handleBrowserBackCancel}
-        />
-      </>
+      <Suspense fallback={<FlowLoadingState />}>
+        <>
+          {flowContent}
+          <BackWarningDialog
+            open={showBrowserBackWarning}
+            onOpenChange={setShowBrowserBackWarning}
+            onContinue={handleBrowserBackContinue}
+            onCancel={handleBrowserBackCancel}
+          />
+        </>
+      </Suspense>
     );
   }
 

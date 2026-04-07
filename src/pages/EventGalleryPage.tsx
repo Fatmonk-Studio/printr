@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -112,12 +112,100 @@ import { Virtuoso } from "react-virtuoso";
 import { useWindowSize } from "@/hooks/useWindowSize";
 
 const MAX_CONCURRENT_LOADS = 3;
+const MAX_CONCURRENT_DOWNLOADS = 3;
+
+const runWithConcurrencyLimit = async <T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const results: R[] = [];
+  let nextIndex = 0;
+
+  const runners = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        results[currentIndex] = await worker(items[currentIndex]);
+      }
+    },
+  );
+
+  await Promise.all(runners);
+  return results;
+};
 
 // Define types for virtual items
 type VirtualItem =
   | { type: "image-row"; items: GalleryImage[] }
   | { type: "empty" }
   | { type: "loading" };
+
+interface GalleryImageCardProps {
+  image: GalleryImage;
+  isSelected: boolean;
+  onToggleSelect: (imageId: string) => void;
+  onDownload: (image: GalleryImage) => void;
+}
+
+const GalleryImageCard = memo(
+  ({
+    image,
+    isSelected,
+    onToggleSelect,
+    onDownload,
+  }: GalleryImageCardProps) => (
+    <Card
+      className={`group relative overflow-hidden transition-all hover:shadow-xl ${
+        isSelected ? "ring-2 ring-primary shadow-lg" : ""
+      }`}
+    >
+      <div className="aspect-square relative overflow-hidden bg-muted">
+        <LazyImage
+          src={image.url}
+          alt={image.title}
+          className="transition-transform duration-300 group-hover:scale-110"
+        />
+
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300">
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <Button
+              size="sm"
+              onClick={() => onDownload(image)}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download
+            </Button>
+          </div>
+        </div>
+
+        <div className="absolute top-2 left-2 z-10">
+          <div
+            onClick={() => onToggleSelect(image.id)}
+            className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
+              isSelected
+                ? "bg-primary border-primary"
+                : "bg-white/90 border-white/90 hover:bg-white"
+            }`}
+          >
+            {isSelected && (
+              <Check className="w-4 h-4 text-primary-foreground" />
+            )}
+          </div>
+        </div>
+
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-white/90 rounded-full p-1.5">
+            <Download className="w-3 h-3 text-primary dark:text-black" />
+          </div>
+        </div>
+      </div>
+    </Card>
+  ),
+);
 
 const EventGalleryPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -204,43 +292,46 @@ const EventGalleryPage = () => {
     fetchEvent();
   }, [eventId, navigate]);
 
-  const handleTabChange = (newTabId: string) => {
-    setActiveTabId(newTabId);
+  const handleTabChange = useCallback(
+    (newTabId: string) => {
+      setActiveTabId(newTabId);
 
-    const categoryId = parseInt(newTabId);
+      const categoryId = parseInt(newTabId);
 
-    // Clear images for other categories to save memory
-    setCategories((prev) =>
-      prev.map((cat) => {
-        if (cat.id !== categoryId && cat.images.length > 0) {
-          return {
-            ...cat,
-            images: [],
-            currentPage: 0,
-            nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=20`,
-          };
-        }
-        return cat;
-      }),
-    );
+      // Clear images for other categories to save memory
+      setCategories((prev) =>
+        prev.map((cat) => {
+          if (cat.id !== categoryId && cat.images.length > 0) {
+            return {
+              ...cat,
+              images: [],
+              currentPage: 0,
+              nextPageUrl: `https://admin.printr.store/api/category/${cat.id}/galleries?page=1&per_page=20`,
+            };
+          }
+          return cat;
+        }),
+      );
 
-    // Trigger load for the new tab if needed
-    // We use a timeout to let the state update settle, or we can just check the current state ref
-    // Actually relying on the 'categories' state here might be stale if we just called setCategories.
-    // However, the *load* check depends on if we *already* have images.
-    // Since we just switched tabs, we can check the *existing* category data in 'categories' (before the clear update)
-    // because the current tab's data wouldn't be touched by the clear logic anyway.
+      // Trigger load for the new tab if needed
+      // We use a timeout to let the state update settle, or we can just check the current state ref
+      // Actually relying on the 'categories' state here might be stale if we just called setCategories.
+      // However, the *load* check depends on if we *already* have images.
+      // Since we just switched tabs, we can check the *existing* category data in 'categories' (before the clear update)
+      // because the current tab's data wouldn't be touched by the clear logic anyway.
 
-    const category = categories.find((c) => c.id === categoryId);
-    if (
-      category &&
-      category.images.length === 0 &&
-      !category.isLoading &&
-      category.nextPageUrl
-    ) {
-      loadCategoryImages(categoryId);
-    }
-  };
+      const category = categories.find((c) => c.id === categoryId);
+      if (
+        category &&
+        category.images.length === 0 &&
+        !category.isLoading &&
+        category.nextPageUrl
+      ) {
+        loadCategoryImages(categoryId);
+      }
+    },
+    [categories],
+  );
 
   // Initial load effect
   useEffect(() => {
@@ -325,7 +416,7 @@ const EventGalleryPage = () => {
     }
   };
 
-  const toggleImageSelection = (imageId: string) => {
+  const toggleImageSelection = useCallback((imageId: string) => {
     setSelectedImages((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(imageId)) {
@@ -335,7 +426,7 @@ const EventGalleryPage = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
   const selectAllInCategory = (categoryId: number) => {
     const category = categories.find((c) => c.id === categoryId);
@@ -399,7 +490,7 @@ const EventGalleryPage = () => {
     }
   };
 
-  const performSingleDownload = async (image: GalleryImage) => {
+  const performSingleDownload = useCallback(async (image: GalleryImage) => {
     try {
       try {
         const response = await fetch(image.url, { mode: "cors" });
@@ -438,12 +529,12 @@ const EventGalleryPage = () => {
       console.error("Download error:", error);
       toast.error("Failed to download image");
     }
-  };
+  }, []);
 
-  const downloadSingleImage = (image: GalleryImage) => {
+  const downloadSingleImage = useCallback((image: GalleryImage) => {
     setPendingDownload(image);
     setShowUserInfoDialog(true);
-  };
+  }, []);
 
   const performBatchDownload = async () => {
     if (selectedImages.size === 0) {
@@ -461,24 +552,27 @@ const EventGalleryPage = () => {
         selectedImages.has(img.id),
       );
 
-      let downloadedCount = 0;
+      const downloadResults = await runWithConcurrencyLimit(
+        imagesToDownload,
+        MAX_CONCURRENT_DOWNLOADS,
+        async (image) => {
+          try {
+            const response = await fetch(image.url, { mode: "cors" });
+            if (!response.ok) throw new Error("Network response was not ok");
+            const blob = await response.blob();
+            const fileName = `${image.title
+              .replace(/[^a-z0-9]/gi, "_")
+              .toLowerCase()}.jpg`;
+            zip.file(fileName, blob);
+            return true;
+          } catch (error) {
+            console.error(`Failed to download ${image.title}`, error);
+            return false;
+          }
+        },
+      );
 
-      const downloadPromises = imagesToDownload.map(async (image) => {
-        try {
-          const response = await fetch(image.url, { mode: "cors" });
-          if (!response.ok) throw new Error("Network response was not ok");
-          const blob = await response.blob();
-          const fileName = `${image.title
-            .replace(/[^a-z0-9]/gi, "_")
-            .toLowerCase()}.jpg`;
-          zip.file(fileName, blob);
-          downloadedCount++;
-        } catch (error) {
-          console.error(`Failed to download ${image.title}`, error);
-        }
-      });
-
-      await Promise.all(downloadPromises);
+      const downloadedCount = downloadResults.filter(Boolean).length;
 
       if (downloadedCount === 0) {
         throw new Error("No images could be downloaded");
@@ -500,19 +594,19 @@ const EventGalleryPage = () => {
     }
   };
 
-  const downloadSelectedImages = () => {
+  const downloadSelectedImages = useCallback(() => {
     if (selectedImages.size === 0) {
       toast.error("Please select at least one image");
       return;
     }
     setPendingDownload(null);
     setShowUserInfoDialog(true);
-  };
+  }, [selectedImages.size]);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedImages(new Set());
     toast.success("Selection cleared");
-  };
+  }, []);
 
   const totalImages = categories.reduce((sum, cat) => sum + cat.totalImages, 0);
 
@@ -565,54 +659,13 @@ const EventGalleryPage = () => {
             {item.items.map((image) => {
               const isSelected = selectedImages.has(image.id);
               return (
-                <Card
+                <GalleryImageCard
                   key={image.id}
-                  className={`group relative overflow-hidden transition-all hover:shadow-xl ${
-                    isSelected ? "ring-2 ring-primary shadow-lg" : ""
-                  }`}
-                >
-                  <div className="aspect-square relative overflow-hidden bg-muted">
-                    <LazyImage
-                      src={image.url}
-                      alt={image.title}
-                      className="transition-transform duration-300 group-hover:scale-110"
-                    />
-
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300">
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Button
-                          size="sm"
-                          onClick={() => downloadSingleImage(image)}
-                          className="flex items-center gap-2"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="absolute top-2 left-2 z-10">
-                      <div
-                        onClick={() => toggleImageSelection(image.id)}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
-                          isSelected
-                            ? "bg-primary border-primary"
-                            : "bg-white/90 border-white/90 hover:bg-white"
-                        }`}
-                      >
-                        {isSelected && (
-                          <Check className="w-4 h-4 text-primary-foreground" />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-white/90 rounded-full p-1.5">
-                        <Download className="w-3 h-3 text-primary dark:text-black" />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+                  image={image}
+                  isSelected={isSelected}
+                  onToggleSelect={toggleImageSelection}
+                  onDownload={downloadSingleImage}
+                />
               );
             })}
           </div>

@@ -9,6 +9,7 @@ interface AlbumCoverSelectorProps {
   shape: "square" | "rectangle";
   onCoverSelected: (cover: string | File, coverId?: number) => void;
   selectedCover: string | File | null;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 interface AlbumCover {
@@ -22,29 +23,46 @@ interface AlbumCover {
   updated_at: string;
 }
 
-export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: AlbumCoverSelectorProps) => {
+export const AlbumCoverSelector = ({
+  shape,
+  onCoverSelected,
+  selectedCover,
+  onLoadingChange,
+}: AlbumCoverSelectorProps) => {
   const [customCover, setCustomCover] = useState<File | null>(null);
   const [albumCovers, setAlbumCovers] = useState<AlbumCover[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Notify parent when loading state changes
+  useEffect(() => {
+    if (onLoadingChange) {
+      onLoadingChange(loading);
+    }
+  }, [loading, onLoadingChange]);
 
   // Fetch album covers from API
   useEffect(() => {
     const fetchAlbumCovers = async () => {
       try {
-        const response = await fetch('https://admin.printr.store/api/album/list');
+        const response = await fetch(
+          "https://admin.printr.store/api/album/list",
+        );
         const result = await response.json();
-        
+
         if (result.success && result.data) {
           // Filter by shape type
-          const filteredCovers = result.data.filter((cover: AlbumCover) => cover.type === shape);
+          const filteredCovers = result.data.filter(
+            (cover: AlbumCover) => cover.type === shape,
+          );
           setAlbumCovers(filteredCovers);
+          setLoading(false);
         } else {
-          toast.error('Failed to load album covers');
+          toast.error("Failed to load album covers");
+          setLoading(false);
         }
       } catch (error) {
-        console.error('Error fetching album covers:', error);
-        toast.error('Failed to load album covers');
-      } finally {
+        console.error("Error fetching album covers:", error);
+        toast.error("Failed to load album covers");
         setLoading(false);
       }
     };
@@ -56,7 +74,7 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && file.type.startsWith("image/")) {
       setCustomCover(file);
       onCoverSelected(file);
     }
@@ -66,7 +84,11 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
     if (cover instanceof File && selectedCover instanceof File) {
       return cover.name === selectedCover.name;
     }
-    if (typeof cover === 'object' && 'id' in cover && typeof selectedCover === 'string') {
+    if (
+      typeof cover === "object" &&
+      "id" in cover &&
+      typeof selectedCover === "string"
+    ) {
       return cover.image === selectedCover;
     }
     return false;
@@ -79,7 +101,11 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="overflow-hidden">
-              <div className={shape === "square" ? "aspect-square" : "aspect-[4/3]"}>
+              <div
+                className={
+                  shape === "square" ? "aspect-square" : "aspect-[4/3]"
+                }
+              >
                 <div className="w-full h-full bg-muted animate-pulse" />
               </div>
             </Card>
@@ -98,12 +124,14 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
             key={preset.id}
             className={`cursor-pointer overflow-hidden transition-all ${
               isSelected(preset)
-                ? 'ring-2 ring-primary shadow-lg scale-105'
-                : 'hover:shadow-md hover:scale-102'
+                ? "ring-2 ring-primary shadow-lg scale-105"
+                : "hover:shadow-md hover:scale-102"
             }`}
             onClick={() => onCoverSelected(preset.image, preset.id)}
           >
-            <div className={shape === "square" ? "aspect-square" : "aspect-[4/3]"}>
+            <div
+              className={shape === "square" ? "aspect-square" : "aspect-[4/3]"}
+            >
               <img
                 src={preset.image}
                 alt={preset.name}
@@ -115,15 +143,17 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
             </div>
           </Card>
         ))}
-        
+
         <Card
           className={`cursor-pointer overflow-hidden transition-all ${
             customCover && isSelected(customCover)
-              ? 'ring-2 ring-primary shadow-lg scale-105'
-              : 'hover:shadow-md hover:scale-102'
+              ? "ring-2 ring-primary shadow-lg scale-105"
+              : "hover:shadow-md hover:scale-102"
           }`}
         >
-          <div className={`${shape === "square" ? "aspect-square" : "aspect-[4/3]"} relative`}>
+          <div
+            className={`${shape === "square" ? "aspect-square" : "aspect-[4/3]"} relative`}
+          >
             {customCover ? (
               <img
                 src={URL.createObjectURL(customCover)}
@@ -133,7 +163,9 @@ export const AlbumCoverSelector = ({ shape, onCoverSelected, selectedCover }: Al
             ) : (
               <label className="w-full h-full flex flex-col items-center justify-center bg-muted cursor-pointer">
                 <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                <p className="text-xs text-muted-foreground text-center px-2">Upload Custom</p>
+                <p className="text-xs text-muted-foreground text-center px-2">
+                  Upload Custom
+                </p>
                 <input
                   type="file"
                   accept="image/*"

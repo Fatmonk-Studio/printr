@@ -28,8 +28,8 @@ export const BackWarningDialog = ({
         <AlertDialogHeader>
           <AlertDialogTitle>Discard your progress?</AlertDialogTitle>
           <AlertDialogDescription>
-            Going back will discard your current progress. Are you sure you want
-            to continue?
+            Leaving this page will discard your current progress. Are you sure
+            you want to continue?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

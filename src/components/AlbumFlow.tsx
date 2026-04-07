@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
 import { AlbumCoverSelector } from "./AlbumCoverSelector";
 import { ALBUM_LAYOUTS, LayoutTemplate } from "./AlbumLayoutTemplates";
@@ -41,6 +41,7 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
   const [pages, setPages] = useState<AlbumPage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [isCoverLoading, setIsCoverLoading] = useState(false);
   const [draggedImage, setDraggedImage] = useState<File | null>(null);
   const hasUnsavedChanges =
     step > 1 ||
@@ -566,13 +567,21 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             shape={shape}
             onCoverSelected={handleCoverSelected}
             selectedCover={coverImage}
+            onLoadingChange={setIsCoverLoading}
           />
           <Button
             className="w-full mt-6"
             onClick={() => setStep(3)}
-            disabled={!coverImage}
+            disabled={!coverImage || isCoverLoading}
           >
-            Continue
+            {isCoverLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading covers...
+              </>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </Card>
       )}
@@ -622,11 +631,16 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       {step === 4 && pages.length > 0 && (
         <>
           {/* Photo Upload Section */}
-          <Card className="p-4 sm:p-6">
-            <h3 className="text-lg font-semibold mb-4">Upload Photos</h3>
-            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center mb-4">
-              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground mb-3">
+          <Card className="p-3 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-3">
+              Upload Photos
+            </h3>
+            <p className="text-xs sm:text-sm font-semibold text-amber-600 mb-3">
+              Upload all the photos you want to add to the album.
+            </p>
+            <div className="border-2 border-dashed border-border rounded-lg p-3 sm:p-6 text-center mb-3">
+              <Upload className="w-8 sm:w-10 h-8 sm:h-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                 {uploadedPhotos.length} photos uploaded
               </p>
               <input
@@ -645,7 +659,7 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {uploadedPhotos.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              <div className="grid grid-cols-5 sm:grid-cols-6 gap-1 sm:gap-2">
                 {uploadedPhotos.map((photo, index) => (
                   <div key={index} className="aspect-square">
                     <img
@@ -660,12 +674,12 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
           </Card>
 
           {/* Page Editor */}
-          <Card className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h3 className="text-lg font-semibold">
+          <Card className="p-1 sm:p-6">
+            <div className="flex flex-row justify-between sm:flex-row sm:items-center sm:justify-between gap-2 mb-1 sm:mb-3">
+              <h3 className="text-base sm:text-lg font-semibold">
                 Page {currentPageIndex + 1} of {pageCount}
               </h3>
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -692,24 +706,24 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {/* Layout Selection */}
-            <div className="mb-4">
-              <Label className="mb-2 block">Select Page Layout</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+            <div className="mb-0 sm:mb-3">
+              <Label className="mb-0.5 sm:mb-2 block text-xs sm:text-sm">
+                Select Page Layout
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
                 {ALBUM_LAYOUTS.map((layout) => (
                   <button
                     key={layout.id}
                     onClick={() =>
                       updatePageLayout(currentPageIndex, layout.id)
                     }
-                    className={`p-2.5 sm:p-3 border rounded-lg text-center transition-all min-h-[64px] sm:min-h-[72px] flex items-center justify-center ${
+                    className={`px-1 sm:px-2 py-1 sm:py-2 border rounded text-center transition-all ${
                       pages[currentPageIndex].layoutId === layout.id
-                        ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                        ? "border-primary bg-primary/10 ring-1 ring-primary"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="text-xs sm:text-sm font-medium leading-tight break-words">
-                      {/* {layout.imageCount}{" "} */}
-                      {/* {layout.imageCount === 1 ? "Image" : "Images"} */}
+                    <p className="text-[10px] sm:text-xs font-medium leading-tight">
                       {layout.name}
                     </p>
                   </button>
@@ -718,9 +732,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {/* Page Preview */}
-            <div className="bg-muted/30 rounded-lg p-3 sm:p-5 md:p-8 min-h-[320px] sm:min-h-[420px] md:min-h-[500px] flex items-center justify-center">
+            <div className="bg-muted/30 rounded-lg p-0.5 sm:p-5 md:p-8 min-h-[78vw] sm:min-h-[420px] md:min-h-[500px] flex items-center justify-center my-1 sm:my-4">
               <div
-                className={`bg-white shadow-xl rounded-lg p-3 sm:p-4 md:p-6 w-full max-w-2xl relative ${
+                className={`bg-white shadow-xl rounded-lg p-0.5 sm:p-4 md:p-6 w-full max-w-none sm:max-w-2xl relative ${
                   shape === "square" ? "aspect-square" : "aspect-[4/3]"
                 }`}
               >
@@ -764,12 +778,12 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                           />
                         </div>
                       ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                          <Upload className="w-6 h-6 text-muted-foreground mb-1" />
-                          <p className="text-xs text-muted-foreground text-center mb-2">
-                            Click to add
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-1 sm:p-2">
+                          <Upload className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground mb-0.5 sm:mb-1" />
+                          <p className="text-[10px] sm:text-xs text-muted-foreground text-center mb-1 sm:mb-2">
+                            Add Image
                           </p>
-                          <div className="flex flex-wrap gap-1 justify-center max-h-24 overflow-y-auto p-1">
+                          <div className="flex flex-wrap gap-1 sm:gap-1 justify-center max-h-32 sm:max-h-24 overflow-y-auto p-0.5 sm:p-1">
                             {uploadedPhotos.map((photo, idx) => (
                               <button
                                 key={idx}
@@ -780,7 +794,7 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                                     photo,
                                   )
                                 }
-                                className="w-8 h-8 rounded border hover:border-primary flex-shrink-0"
+                                className="w-9 h-9 sm:w-8 sm:h-8 rounded border hover:border-primary active:scale-95 transition-transform flex-shrink-0"
                               >
                                 <img
                                   src={URL.createObjectURL(photo)}
@@ -799,12 +813,12 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 bg-muted rounded-lg mt-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-1.5 sm:p-4 bg-muted rounded-lg mt-1 sm:mt-3">
               <div>
-                <p className="text-base sm:text-lg font-semibold">
+                <p className="text-sm sm:text-lg font-semibold">
                   Total: {getTotalPrice()} tk
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {shape === "square" ? "Square" : "Rectangle"} • {pageCount}{" "}
                   pages
                 </p>

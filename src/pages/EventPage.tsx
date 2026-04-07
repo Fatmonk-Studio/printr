@@ -4,6 +4,7 @@ import { Navigation } from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LazyImage } from "@/components/LazyImage";
 import {
   ImageIcon,
   Loader2,
@@ -28,6 +29,7 @@ interface ApiEvent {
   title: string;
   status: string;
   description: string | null;
+  image_url: string | null;
   categories: ApiCategory[];
 }
 
@@ -37,6 +39,20 @@ interface EventListResponse {
   message: string;
   code: number;
 }
+
+const IMAGE_BASE_URL = "https://admin.printr.store";
+
+const getEventCoverUrl = (imageUrl: string | null) => {
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  return `${IMAGE_BASE_URL}/${imageUrl.replace(/^\/+/, "")}`;
+};
 
 const EventPage = () => {
   const navigate = useNavigate();
@@ -48,7 +64,7 @@ const EventPage = () => {
       try {
         setIsLoading(true);
         const response = await fetch(
-          "https://admin.printr.store/api/event/list"
+          "https://admin.printr.store/api/event/list",
         );
         const result: EventListResponse = await response.json();
 
@@ -118,8 +134,9 @@ const EventPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map((event) => {
                 const activeCategories = event.categories.filter(
-                  (cat) => cat.status === "active"
+                  (cat) => cat.status === "active",
                 );
+                const coverUrl = getEventCoverUrl(event.image_url);
 
                 return (
                   <Card
@@ -128,13 +145,19 @@ const EventPage = () => {
                     onClick={() => handleEventClick(event.id)}
                   >
                     {/* Card Image/Icon Section */}
-                    <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-12 flex items-center justify-center">
-                      <div className="relative">
-                        <ImageIcon className="w-20 h-20 text-primary group-hover:scale-110 transition-transform duration-300" />
-                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-                          {activeCategories.length}
+                    <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
+                      {coverUrl ? (
+                        <LazyImage
+                          src={coverUrl}
+                          alt={event.title}
+                          className="h-full w-full"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <ImageIcon className="w-20 h-20 text-primary group-hover:scale-110 transition-transform duration-300" />
                         </div>
-                      </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
                     </div>
 
                     {/* Card Content */}
