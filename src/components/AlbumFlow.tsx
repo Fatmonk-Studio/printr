@@ -13,6 +13,7 @@ interface ImageData {
   file: File;
   zoom: number;
   position: { x: number; y: number };
+  viewportSize?: { width: number; height: number };
 }
 
 interface AlbumPage {
@@ -135,12 +136,17 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
     pageIndex: number,
     slotIndex: number,
     position: { x: number; y: number },
+    viewportSize?: { width: number; height: number },
   ) => {
     setPages((prev) => {
       const newPages = [...prev];
       const img = newPages[pageIndex].images[slotIndex];
       if (img) {
-        newPages[pageIndex].images[slotIndex] = { ...img, position };
+        newPages[pageIndex].images[slotIndex] = {
+          ...img,
+          position,
+          viewportSize: viewportSize || img.viewportSize,
+        };
       }
       return newPages;
     });
@@ -211,28 +217,38 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, width, height);
 
-          // Apply zoom and position transformations
-          ctx.save();
-          ctx.translate(width / 2, height / 2);
-          ctx.scale(imageData.zoom, imageData.zoom);
-          ctx.translate(
-            imageData.position.x / imageData.zoom,
-            imageData.position.y / imageData.zoom,
-          );
+          // Match preview behavior exactly: object-contain + translate + scale
+          const imgAspect = img.width / img.height;
+          const containerAspect = width / height;
 
-          // Calculate image dimensions to cover the canvas
-          const scale = Math.max(width / img.width, height / img.height);
-          const scaledWidth = img.width * scale;
-          const scaledHeight = img.height * scale;
+          let baseWidth: number;
+          let baseHeight: number;
+          if (imgAspect > containerAspect) {
+            baseWidth = width;
+            baseHeight = baseWidth / imgAspect;
+          } else {
+            baseHeight = height;
+            baseWidth = baseHeight * imgAspect;
+          }
+
+          const drawWidth = baseWidth * imageData.zoom;
+          const drawHeight = baseHeight * imageData.zoom;
+          const offsetScaleX = imageData.viewportSize?.width
+            ? width / imageData.viewportSize.width
+            : 1;
+          const offsetScaleY = imageData.viewportSize?.height
+            ? height / imageData.viewportSize.height
+            : 1;
+          const centerX = width / 2 + imageData.position.x * offsetScaleX;
+          const centerY = height / 2 + imageData.position.y * offsetScaleY;
 
           ctx.drawImage(
             img,
-            -scaledWidth / 2,
-            -scaledHeight / 2,
-            scaledWidth,
-            scaledHeight,
+            centerX - drawWidth / 2,
+            centerY - drawHeight / 2,
+            drawWidth,
+            drawHeight,
           );
-          ctx.restore();
 
           URL.revokeObjectURL(imageUrl);
 
@@ -305,28 +321,39 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
               ctx.rect(slotX, slotY, slotWidth, slotHeight);
               ctx.clip();
 
-              // Apply transformations for zoom and position
-              ctx.translate(slotX + slotWidth / 2, slotY + slotHeight / 2);
-              ctx.scale(imageData.zoom, imageData.zoom);
-              ctx.translate(
-                imageData.position.x / imageData.zoom,
-                imageData.position.y / imageData.zoom,
-              );
+              // Match preview behavior exactly: object-contain + translate + scale
+              const imgAspect = img.width / img.height;
+              const slotAspect = slotWidth / slotHeight;
 
-              // Calculate image dimensions to cover the slot
-              const scale = Math.max(
-                slotWidth / img.width,
-                slotHeight / img.height,
-              );
-              const scaledWidth = img.width * scale;
-              const scaledHeight = img.height * scale;
+              let baseWidth: number;
+              let baseHeight: number;
+              if (imgAspect > slotAspect) {
+                baseWidth = slotWidth;
+                baseHeight = baseWidth / imgAspect;
+              } else {
+                baseHeight = slotHeight;
+                baseWidth = baseHeight * imgAspect;
+              }
+
+              const drawWidth = baseWidth * imageData.zoom;
+              const drawHeight = baseHeight * imageData.zoom;
+              const offsetScaleX = imageData.viewportSize?.width
+                ? slotWidth / imageData.viewportSize.width
+                : 1;
+              const offsetScaleY = imageData.viewportSize?.height
+                ? slotHeight / imageData.viewportSize.height
+                : 1;
+              const centerX =
+                slotX + slotWidth / 2 + imageData.position.x * offsetScaleX;
+              const centerY =
+                slotY + slotHeight / 2 + imageData.position.y * offsetScaleY;
 
               ctx.drawImage(
                 img,
-                -scaledWidth / 2,
-                -scaledHeight / 2,
-                scaledWidth,
-                scaledHeight,
+                centerX - drawWidth / 2,
+                centerY - drawHeight / 2,
+                drawWidth,
+                drawHeight,
               );
 
               ctx.restore();
@@ -768,11 +795,12 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                             onZoomChange={(zoom) =>
                               updateImageZoom(currentPageIndex, slotIndex, zoom)
                             }
-                            onPositionChange={(position) =>
+                            onPositionChange={(position, viewportSize) =>
                               updateImagePosition(
                                 currentPageIndex,
                                 slotIndex,
                                 position,
+                                viewportSize,
                               )
                             }
                           />

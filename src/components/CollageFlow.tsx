@@ -83,6 +83,11 @@ const COLLAGE_SIZES = {
   },
 };
 
+interface CollageImage {
+  id: string;
+  src: string;
+}
+
 interface ImageTransformData {
   id: string;
   scale: number;
@@ -98,7 +103,7 @@ export const CollageFlow = ({
   id,
   onUnsavedChangesChange,
 }: CollageFlowProps) => {
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImg, setSelectedImg] = useState<File[]>([]);
   const [selectedShape, setSelectedShape] = useState<Shape>("square");
   const [showCollage, setShowCollage] = useState(false);
@@ -481,7 +486,13 @@ export const CollageFlow = ({
         });
 
         const base64Images = await Promise.all(base64Promises);
-        setImages((prevImages) => [...prevImages, ...base64Images]);
+        setImages((prevImages) => [
+          ...prevImages,
+          ...base64Images.map((src) => ({
+            id: crypto.randomUUID(),
+            src,
+          })),
+        ]);
       };
 
       processFiles();
@@ -573,10 +584,14 @@ export const CollageFlow = ({
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
 
-    if (active.id !== over.id) {
-      const oldIndex = images.findIndex((img) => img === active.id);
-      const newIndex = images.findIndex((img) => img === over.id);
+    if (!over || active.id === over.id) {
+      return;
+    }
 
+    const oldIndex = images.findIndex((img) => img.id === active.id);
+    const newIndex = images.findIndex((img) => img.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
       const updatedImages = arrayMove(images, oldIndex, newIndex);
       setImages(updatedImages);
 
@@ -675,22 +690,20 @@ export const CollageFlow = ({
 
       // Get all image elements from the collage
       const imageElements = collageElement.querySelectorAll("img");
-      const layout = getCollageLayout(images.length, selectedShape);
 
       // Process each image
       await Promise.all(
         Array.from(imageElements).map(async (imgElement, index) => {
           return new Promise<void>((resolve) => {
-            const imageContainer = imgElement.closest(
-              '[class*="col-span"]',
-            ) as HTMLElement;
-            if (!imageContainer) {
+            const imageViewport =
+              imgElement.parentElement as HTMLElement | null;
+            if (!imageViewport) {
               resolve();
               return;
             }
 
-            // Get the container's position and size relative to the collage
-            const containerRect = imageContainer.getBoundingClientRect();
+            // Use the exact viewport where object-contain + transform is applied
+            const containerRect = imageViewport.getBoundingClientRect();
             const collageRect = collageElement.getBoundingClientRect();
 
             const x = (containerRect.left - collageRect.left) * scaleFactor;
@@ -699,7 +712,7 @@ export const CollageFlow = ({
             const height = containerRect.height * scaleFactor;
 
             // Get transform data for this image
-            const imageId = images[index];
+            const imageId = images[index]?.id;
             const transform = imageTransforms.get(imageId) || {
               scale: 1,
               position: { x: 0, y: 0 },
@@ -717,36 +730,33 @@ export const CollageFlow = ({
               ctx.rect(x, y, width, height);
               ctx.clip();
 
-              // Move to container center
-              ctx.translate(x + width / 2, y + height / 2);
-
-              // Apply user's transformations
-              ctx.translate(
-                transform.position.x * scaleFactor,
-                transform.position.y * scaleFactor,
-              );
-              ctx.scale(transform.scale, transform.scale);
-
-              // Calculate image dimensions to cover the container
+              // Match preview behavior exactly: object-contain + translate + scale (transform-origin center)
               const imgAspect = img.naturalWidth / img.naturalHeight;
               const containerAspect = width / height;
 
-              let drawWidth, drawHeight;
+              let baseWidth, baseHeight;
               if (imgAspect > containerAspect) {
-                // Image is wider - fit to height
-                drawHeight = height / transform.scale;
-                drawWidth = drawHeight * imgAspect;
+                // Image is wider - fit to width
+                baseWidth = width;
+                baseHeight = baseWidth / imgAspect;
               } else {
-                // Image is taller - fit to width
-                drawWidth = width / transform.scale;
-                drawHeight = drawWidth / imgAspect;
+                // Image is taller - fit to height
+                baseHeight = height;
+                baseWidth = baseHeight * imgAspect;
               }
+
+              const drawWidth = baseWidth * transform.scale;
+              const drawHeight = baseHeight * transform.scale;
+              const centerX =
+                x + width / 2 + transform.position.x * scaleFactor;
+              const centerY =
+                y + height / 2 + transform.position.y * scaleFactor;
 
               // Draw image centered
               ctx.drawImage(
                 img,
-                -drawWidth / 2,
-                -drawHeight / 2,
+                centerX - drawWidth / 2,
+                centerY - drawHeight / 2,
                 drawWidth,
                 drawHeight,
               );
@@ -1047,14 +1057,14 @@ export const CollageFlow = ({
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
-                    items={images}
+                    items={images.map((image) => image.id)}
                     strategy={rectSortingStrategy}
                   >
                     {images.map((image, index) => (
                       <CollageItem
-                        key={image}
-                        id={image}
-                        image={image}
+                        key={image.id}
+                        id={image.id}
+                        image={image.src}
                         index={index}
                         onRemove={handleRemoveImage}
                         onTransformChange={handleTransformChange}

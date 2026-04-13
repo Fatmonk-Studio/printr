@@ -8,7 +8,10 @@ interface ImageSlotEditorProps {
   zoom: number;
   position: { x: number; y: number };
   onZoomChange: (zoom: number) => void;
-  onPositionChange: (position: { x: number; y: number }) => void;
+  onPositionChange: (
+    position: { x: number; y: number },
+    viewportSize?: { width: number; height: number },
+  ) => void;
 }
 
 export const ImageSlotEditor = ({
@@ -51,11 +54,20 @@ export const ImageSlotEditor = ({
 
     const deltaX = clientX - dragStartRef.current.x;
     const deltaY = clientY - dragStartRef.current.y;
+    const viewportSize = containerRef.current
+      ? {
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        }
+      : undefined;
 
-    onPositionChange({
-      x: dragStartRef.current.startX + deltaX,
-      y: dragStartRef.current.startY + deltaY,
-    });
+    onPositionChange(
+      {
+        x: dragStartRef.current.startX + deltaX,
+        y: dragStartRef.current.startY + deltaY,
+      },
+      viewportSize,
+    );
   };
 
   const handleDragEnd = () => {
@@ -171,7 +183,7 @@ export const ImageSlotEditor = ({
         <img
           src={imageUrl}
           alt="Album photo"
-          className="w-full h-full object-cover pointer-events-none select-none"
+          className="w-full h-full object-contain pointer-events-none select-none"
           draggable={false}
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,

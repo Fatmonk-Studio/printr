@@ -11,7 +11,11 @@ interface CollageItemProps {
   onRemove: (index: number) => void;
   totalImages: number;
   layoutClass: string;
-  onTransformChange?: (id: string, scale: number, position: { x: number; y: number }) => void;
+  onTransformChange?: (
+    id: string,
+    scale: number,
+    position: { x: number; y: number },
+  ) => void;
 }
 
 const CollageItem: React.FC<CollageItemProps> = ({
@@ -36,20 +40,20 @@ const CollageItem: React.FC<CollageItemProps> = ({
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ 
+  } = useSortable({
     id,
-    disabled: isActive // Disable sortable when in edit mode
+    disabled: isActive, // Disable sortable when in edit mode
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isSortableDragging ? 1000 : 'auto',
+    zIndex: isSortableDragging ? 1000 : "auto",
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isActive || isSortableDragging) return;
-    
+
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
@@ -59,12 +63,12 @@ const CollageItem: React.FC<CollageItemProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - dragStartPos.current.x;
       const deltaY = e.clientY - dragStartPos.current.y;
-      
+
       const newPosition = {
         x: initialPos.current.x + deltaX,
         y: initialPos.current.y + deltaY,
       };
-      
+
       setPosition(newPosition);
       onTransformChange?.(id, scale, newPosition);
     };
@@ -81,7 +85,7 @@ const CollageItem: React.FC<CollageItemProps> = ({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isActive || isSortableDragging) return;
-    
+
     e.stopPropagation();
     const touch = e.touches[0];
     setIsDragging(true);
@@ -93,12 +97,12 @@ const CollageItem: React.FC<CollageItemProps> = ({
         const touch = e.touches[0];
         const deltaX = touch.clientX - dragStartPos.current.x;
         const deltaY = touch.clientY - dragStartPos.current.y;
-        
+
         const newPosition = {
           x: initialPos.current.x + deltaX,
           y: initialPos.current.y + deltaY,
         };
-        
+
         setPosition(newPosition);
         onTransformChange?.(id, scale, newPosition);
       }
@@ -165,8 +169,10 @@ const CollageItem: React.FC<CollageItemProps> = ({
       ref={setNodeRef}
       style={style}
       className={`${layoutClass} relative overflow-hidden rounded-lg border-2 transition-all group ${
-        isActive ? 'border-primary ring-2 ring-primary/20 z-10' : 'border-gray-200'
-      } ${isSortableDragging ? 'opacity-50' : ''}`}
+        isActive
+          ? "border-primary ring-2 ring-primary/20 z-10"
+          : "border-gray-200"
+      } ${isSortableDragging ? "opacity-50" : ""}`}
       onClick={handleClick}
     >
       {/* Sortable Handle - Only visible when not in edit mode */}
@@ -176,7 +182,7 @@ const CollageItem: React.FC<CollageItemProps> = ({
           {...listeners}
           className="absolute top-2 left-2 z-20 cursor-move bg-black/70 hover:bg-black/90 p-2 sm:p-1.5 rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity touch-none"
           onClick={(e) => e.stopPropagation()}
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: "none" }}
         >
           <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
         </div>
@@ -223,7 +229,7 @@ const CollageItem: React.FC<CollageItemProps> = ({
       )}
 
       {/* Image */}
-      <div 
+      <div
         className="w-full h-full relative overflow-hidden touch-none"
         onMouseDown={isActive ? handleMouseDown : undefined}
         onTouchStart={isActive ? handleTouchStart : undefined}
@@ -232,16 +238,16 @@ const CollageItem: React.FC<CollageItemProps> = ({
         <img
           src={image}
           alt={`Collage item ${index + 1}`}
-          className={`w-full h-full object-cover transition-transform select-none ${
-            isActive ? 'cursor-grab' : 'cursor-pointer'
-          } ${isDragging ? 'cursor-grabbing' : ''}`}
+          className={`w-full h-full object-contain transition-transform select-none ${
+            isActive ? "cursor-grab" : "cursor-pointer"
+          } ${isDragging ? "cursor-grabbing" : ""}`}
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            transformOrigin: 'center',
+            transformOrigin: "center",
           }}
           draggable={false}
         />
-        
+
         {/* Active State Overlay */}
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
@@ -253,7 +259,11 @@ const CollageItem: React.FC<CollageItemProps> = ({
       {/* Instructions - Only visible when active on desktop */}
       {isActive && (
         <div className="hidden sm:block absolute bottom-2 left-2 z-20 bg-black/80 text-white text-xs p-2 rounded max-w-32">
-          <p className="leading-tight">Drag to pan<br/>Scroll to zoom</p>
+          <p className="leading-tight">
+            Drag to pan
+            <br />
+            Scroll to zoom
+          </p>
         </div>
       )}
 
