@@ -23,9 +23,13 @@ interface AlbumPage {
 }
 
 // const PAGE_OPTIONS = [4, 8, 12, 16, 20, 24, 28];
-const PAGE_OPTIONS = [4, 8, 12, 16, 20];
+const PAGE_OPTIONS = [8, 12, 16, 20];
 const PRICE_PER_PAGE = 100; // tk per page
 const BASE_PRICE = 1000; // tk base price
+const OUTPUT_DPI = 96;
+const SQUARE_SIZE_INCHES = 6;
+const RECTANGLE_WIDTH_INCHES = 8.27;
+const RECTANGLE_HEIGHT_INCHES = 5.83;
 
 interface AlbumFlowProps {
   id: number;
@@ -37,6 +41,8 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
   const [shape, setShape] = useState<"square" | "rectangle">("square");
   const [coverImage, setCoverImage] = useState<string | File | null>(null);
   const [coverId, setCoverId] = useState<number | null>(null);
+  const [albumTitle, setAlbumTitle] = useState("");
+  const [albumSubtitle, setAlbumSubtitle] = useState("");
   const [pageCount, setPageCount] = useState(8);
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
   const [pages, setPages] = useState<AlbumPage[]>([]);
@@ -67,7 +73,8 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       images: Array(ALBUM_LAYOUTS[0].imageCount).fill(null),
     }));
     setPages(newPages);
-    setStep(4);
+    setCurrentPageIndex(0);
+    setStep(5);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,6 +199,20 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       return 150;
     }
     return 0;
+  };
+
+  const getOutputCanvasSize = () => {
+    if (shape === "square") {
+      return {
+        width: Math.round(SQUARE_SIZE_INCHES * OUTPUT_DPI),
+        height: Math.round(SQUARE_SIZE_INCHES * OUTPUT_DPI),
+      };
+    }
+
+    return {
+      width: Math.round(RECTANGLE_WIDTH_INCHES * OUTPUT_DPI),
+      height: Math.round(RECTANGLE_HEIGHT_INCHES * OUTPUT_DPI),
+    };
   };
 
   // Function to create edited version of image with zoom and position
@@ -402,9 +423,14 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
       }
 
       // Create combined canvas images for each page
+      const outputSize = getOutputCanvasSize();
       const processedPages = await Promise.all(
         pagesWithContent.map(async (page) => {
-          return await createPageCanvas(page);
+          return await createPageCanvas(
+            page,
+            outputSize.width,
+            outputSize.height,
+          );
         }),
       );
 
@@ -431,6 +457,8 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
         contactData.deliveryLocation || "inside_dhaka",
       );
       formData.append("payment_method", contactData.paymentMethod);
+      formData.append("title", albumTitle.trim());
+      formData.append("subtitle", albumSubtitle.trim());
 
       if (contactData.additionalInfo) {
         formData.append("additional_info", contactData.additionalInfo);
@@ -484,6 +512,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
         setUploadedPhotos([]);
         setCoverImage(null);
         setCoverId(null);
+        setAlbumTitle("");
+        setAlbumSubtitle("");
+        setCurrentPageIndex(0);
         setShowContactForm(false);
         setStep(1);
       } else {
@@ -516,6 +547,12 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                   {shape === "square" ? "Square" : "Rectangle"} Album •{" "}
                   {pageCount} Pages
                 </p>
+                <p className="text-xs text-muted-foreground">{albumTitle}</p>
+                {albumSubtitle && (
+                  <p className="text-xs text-muted-foreground">
+                    {albumSubtitle}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {
                     pages.filter((p) => p.images.some((img) => img !== null))
@@ -542,9 +579,18 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
   );
   const layoutPositions = currentLayout ? currentLayout[shape] : [];
   const isLastPage = currentPageIndex === pageCount - 1;
-  const allPagesHaveImages =
-    pages.length > 0 &&
-    pages.every((page) => page.images.some((img) => img !== null));
+
+  const validateCurrentPageHasImage = () => {
+    const currentPage = pages[currentPageIndex];
+    const hasImage = currentPage?.images.some((img) => img !== null);
+
+    if (!hasImage) {
+      toast.error("Please select an image for the current page");
+      return false;
+    }
+
+    return true;
+  };
 
   return (
     <div className="space-y-6">
@@ -563,7 +609,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
               className="p-6 border-2 rounded-lg hover:border-primary transition-all hover:shadow-lg"
             >
               <div className="aspect-square bg-muted rounded mb-3"></div>
-              <p className="font-semibold">Square Album</p>
+              <p className="font-semibold">
+                Square Album <br /> (6 × 6 inches)
+              </p>
             </button>
             <button
               onClick={() => {
@@ -573,7 +621,9 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
               className="p-6 border-2 rounded-lg hover:border-primary transition-all hover:shadow-lg"
             >
               <div className="aspect-[4/3] bg-muted rounded mb-3"></div>
-              <p className="font-semibold">Rectangle Album</p>
+              <p className="font-semibold">
+                Rectangle Album <br /> (5.83 × 8.27 inches)
+              </p>
             </button>
           </div>
         </Card>
@@ -613,14 +663,59 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
         </Card>
       )}
 
-      {/* Step 3: Page Count Selection */}
+      {/* Step 3: Title & Subtitle */}
       {step === 3 && (
         <Card className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-xl sm:text-2xl font-semibold">
-              Step 3: Select Number of Pages
+              Step 3: Add Title & Subtitle
             </h2>
             <Button variant="outline" onClick={() => setStep(2)}>
+              Back
+            </Button>
+          </div>
+          <div className="space-y-4 mb-6">
+            <div className="space-y-2">
+              <Label htmlFor="album-title">Title *</Label>
+              <input
+                id="album-title"
+                type="text"
+                value={albumTitle}
+                onChange={(e) => setAlbumTitle(e.target.value)}
+                placeholder="Enter album title"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="album-subtitle">Subtitle</Label>
+              <input
+                id="album-subtitle"
+                type="text"
+                value={albumSubtitle}
+                onChange={(e) => setAlbumSubtitle(e.target.value)}
+                placeholder="Enter subtitle (optional)"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => setStep(4)}
+            disabled={!albumTitle.trim()}
+          >
+            Continue
+          </Button>
+        </Card>
+      )}
+
+      {/* Step 4: Page Count Selection */}
+      {step === 4 && (
+        <Card className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">
+              Step 4: Select Number of Pages
+            </h2>
+            <Button variant="outline" onClick={() => setStep(3)}>
               Back
             </Button>
           </div>
@@ -654,8 +749,8 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
         </Card>
       )}
 
-      {/* Step 4: Page Layout & Image Upload */}
-      {step === 4 && pages.length > 0 && (
+      {/* Step 5: Page Layout & Image Upload */}
+      {step === 5 && pages.length > 0 && (
         <>
           {/* Photo Upload Section */}
           <Card className="p-3 sm:p-6">
@@ -720,11 +815,15 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
+                    if (!validateCurrentPageHasImage()) {
+                      return;
+                    }
+
                     setCurrentPageIndex(
                       Math.min(pages.length - 1, currentPageIndex + 1),
-                    )
-                  }
+                    );
+                  }}
                   disabled={currentPageIndex === pages.length - 1}
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -856,13 +955,16 @@ export const AlbumFlow = ({ id, onUnsavedChangesChange }: AlbumFlowProps) => {
                 size="lg"
                 className="w-full sm:w-auto"
                 onClick={() => {
+                  if (!validateCurrentPageHasImage()) {
+                    return;
+                  }
+
                   if (!isLastPage) {
                     setCurrentPageIndex(currentPageIndex + 1);
                   } else {
                     setShowContactForm(true);
                   }
                 }}
-                disabled={isLastPage && !allPagesHaveImages}
               >
                 {isLastPage ? "Continue to Contact Info" : "Next Page"}
               </Button>

@@ -411,10 +411,15 @@ export const FrameFlow = ({ id, onUnsavedChangesChange }: FrameFlowProps) => {
           const size = getSizeById(photo.sizeId);
           dimensionString = size?.dimention || '12" x 16"';
         }
-        const previewDim = getPreviewDimensions(
-          dimensionString,
-          photo.bleedType,
-        );
+        let previewDim = getPreviewDimensions(dimensionString, photo.bleedType);
+
+        // Swap dimensions based on orientation to match the preview
+        if (photo.orientation === "vertical") {
+          previewDim = {
+            width: previewDim.height,
+            height: previewDim.width,
+          };
+        }
 
         // Get crop data (position and scale from user's editing)
         const cropData = photo.cropData || { x: 0, y: 0, scale: 1 };

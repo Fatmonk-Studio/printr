@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X } from "lucide-react";
+import { Upload, X, RotateCw } from "lucide-react";
 import { ContactForm, ContactFormData } from "./ContactForm";
 import { ImagePreviewCanvas, CropData } from "./ImagePreviewCanvas";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ interface PhotoItem {
     height: string;
   };
   useCustomSize?: boolean;
+  canvasRotated?: boolean;
 }
 
 // Helper function to calculate preview dimensions based on actual size
@@ -273,6 +274,11 @@ export const PrintPhotoFlow = ({
           [widthInches, heightInches] = parts;
         }
 
+        // Swap dimensions if canvas is rotated
+        if (photo.canvasRotated) {
+          [widthInches, heightInches] = [heightInches, widthInches];
+        }
+
         // Calculate actual print dimensions at 300 DPI
         const targetWidth = widthInches * 300;
         const targetHeight = heightInches * 300;
@@ -296,13 +302,22 @@ export const PrintPhotoFlow = ({
             : getSizeById(photo.sizeId)?.dimention || '12" x 18"';
         const previewDimensions = getPreviewDimensions(dimensionString);
 
+        // Swap preview dimensions if canvas is rotated
+        let adjustedPreviewDimensions = previewDimensions;
+        if (photo.canvasRotated) {
+          adjustedPreviewDimensions = {
+            width: previewDimensions.height,
+            height: previewDimensions.width,
+          };
+        }
+
         // Calculate scale factor from preview to print resolution
-        const outputScaleX = targetWidth / previewDimensions.width;
-        const outputScaleY = targetHeight / previewDimensions.height;
+        const outputScaleX = targetWidth / adjustedPreviewDimensions.width;
+        const outputScaleY = targetHeight / adjustedPreviewDimensions.height;
 
         // The preview CSS does: transform: translate(x, y) scale(s) with transformOrigin: "top left"
         // The image renders to fit the preview width while maintaining aspect ratio
-        const previewImageWidth = previewDimensions.width;
+        const previewImageWidth = adjustedPreviewDimensions.width;
         const previewImageHeight = (img.height / img.width) * previewImageWidth;
 
         // Apply the transformations matching the preview
@@ -540,14 +555,29 @@ export const PrintPhotoFlow = ({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold">Interactive Preview</h3>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removePhoto(photo.id)}
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Remove
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updatePhoto(photo.id, {
+                            canvasRotated: !photo.canvasRotated,
+                          })
+                        }
+                        title="Rotate canvas"
+                      >
+                        <RotateCw className="w-4 h-4" />
+                        Rotate
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removePhoto(photo.id)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
                   </div>
 
                   {(() => {
@@ -561,6 +591,15 @@ export const PrintPhotoFlow = ({
                         ? getPreviewDimensions(size.dimention)
                         : { width: 400, height: 600 };
                     }
+
+                    // Swap dimensions if canvas is rotated
+                    if (photo.canvasRotated) {
+                      dimensions = {
+                        width: dimensions.height,
+                        height: dimensions.width,
+                      };
+                    }
+
                     return (
                       <ImagePreviewCanvas
                         imageUrl={photo.preview}
