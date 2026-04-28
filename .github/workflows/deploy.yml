@@ -33,4 +33,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: ./
+          timeout: 600000
           # The './' above works because your FTP account is locked to the subdomain's root directory. Adjust if needed.
