@@ -341,7 +341,6 @@ const Index = () => {
       {/* Hero Section */}
       <Hero onProductSelect={handleProductClick} />
       {/* <Features /> */}
-      <h1 className="bg-red-500 h-10">TEST 3</h1>
       <Services onProductSelect={handleProductClick} />
       <HowItWorks />
       <CallToAction onProductSelect={handleProductClick} />
